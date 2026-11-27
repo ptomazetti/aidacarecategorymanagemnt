@@ -312,7 +312,7 @@
 #cpbAuth button{font:inherit;border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid #C9CED5;background:#fff;color:#1B2430}
 #cpbAuth button.pri{background:#007C92;border-color:#007C92;color:#fff;font-weight:600}
 #cpbAuth button.lnk{border:0;background:none;color:#006b7e;text-decoration:underline;padding:4px 0}
-#cpbAuth .msg{font-size:13px;min-height:1.2em;color:#B3261E}
+#cpbAuth .msg{font-size:13px;min-height:1.2em;color:#B3261E;border:0;padding:0;border-radius:0}
 #cpbAuth .msg.ok{color:#1E6B3A}`;
   function el(html){ const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; }
   function openAuth(mode){
