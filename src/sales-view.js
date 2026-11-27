@@ -172,7 +172,7 @@ function svEnsure(){
   });
 }
 function renderSales(){
-  const bar=$("#bar"), app=$("#app"); if(bar) bar.hidden=true; if(app) app.hidden=true;
+  const bar=$("#bar"), app=$("#app"); if(bar) bar.style.display="none"; if(app) app.style.display="none";
   svEnsure(); SV.host.hidden=false;
   const [d0,d1] = svDates();
   svQ("#svSub").textContent = "Our LIST next to competitor prices on Australian websites"+(d0?", checked "+svDate(d0)+(d1&&d1!==d0?" to "+svDate(d1):""):"")+". Open the link before quoting a competitor price.";

@@ -159,7 +159,13 @@
         <label>Email<input name="email" type="email" autocomplete="username" required></label>
         <label>Password<input name="pw" type="password" autocomplete="current-password" required></label>
         <div class="msg" role="status" aria-live="polite"></div>
-        <div class="row"><button type="button" class="lnk" data-go="reset">Forgot password?</button><span><button type="button" data-x>Cancel</button> <button class="pri">Sign in</button></span></div></form>`,
+        <div class="row"><button type="button" class="lnk" data-go="reset">Forgot password?</button><span><button type="button" data-x>Cancel</button> <button class="pri">Sign in</button></span></div>
+        <p>First time here? <button type="button" class="lnk" data-go="signup">Create your login</button></p></form>`,
+      signup: `<form><h2>Create your login</h2><p>Use your Aidacare email. Only emails on the team list see the internal numbers.</p>
+        <label>Email<input name="email" type="email" autocomplete="username" required></label>
+        <label>Password (at least 10 characters)<input name="pw" type="password" autocomplete="new-password" minlength="10" required></label>
+        <div class="msg" role="status" aria-live="polite"></div>
+        <div class="row"><button type="button" class="lnk" data-go="signin">Back to sign in</button><span><button type="button" data-x>Cancel</button> <button class="pri">Create login</button></span></div></form>`,
       reset: `<form><h2>Reset password</h2><p>We'll email you a link to set a new password.</p>
         <label>Email<input name="email" type="email" autocomplete="username" required></label>
         <div class="msg" role="status" aria-live="polite"></div>
@@ -184,6 +190,12 @@
         if(mode === "reset"){
           const r = await sb.auth.resetPasswordForEmail(f.email.value.trim(), {redirectTo: location.origin + location.pathname});
           if(r.error) throw r.error; msg.className = "msg ok"; msg.textContent = "If that email is on the team list, a link is on its way."; b.disabled = false; return;
+        }
+        if(mode === "signup"){
+          const r = await sb.auth.signUp({email: f.email.value.trim(), password: f.pw.value, options: {emailRedirectTo: location.origin + location.pathname}});
+          if(r.error) throw r.error;
+          if(r.data && r.data.session){ msg.className = "msg ok"; msg.textContent = "Login created. Loading the board…"; location.reload(); return; }
+          msg.className = "msg ok"; msg.textContent = "Done. Check your email and click the confirmation link, then come back here and sign in."; b.disabled = false; return;
         }
         if(mode === "newpw"){
           const r = await sb.auth.updateUser({password: f.pw.value}); if(r.error) throw r.error;

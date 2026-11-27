@@ -561,6 +561,7 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
   .kpis .v{font-size:22px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -601,7 +602,7 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
   </div>
 </div>
 
-<script>window.CPB_CONFIG = {"url": "", "key": ""};</script>
+<script>window.CPB_CONFIG = {"url": "https://xadsfuwovcdelnudttdr.supabase.co", "key": "sb_publishable_q2Q1vFfppjOfLXn5V0NUIA_7goY9sRA"};</script>
 <script src="vendor/supabase.js"></script>
 <script src="cpb-backend.js"></script>
 <script>
@@ -979,7 +980,7 @@ function renderNav(r){
 function render(){
   if(!S.got.c || !S.got.p) return;
   if(!S.team){ renderSales(); return; }
-  { const h=document.getElementById("svHost"); if(h) h.hidden=true; const b=$("#bar"), a=$("#app"); if(b) b.hidden=false; if(a) a.hidden=false; }
+  { const h=document.getElementById("svHost"); if(h) h.hidden=true; const b=$("#bar"), a=$("#app"); if(b) b.style.display=""; if(a) a.style.display=""; }
   if(!S.prods.size){ $("#app").innerHTML = `<div class="msg">No products are loaded yet.</div>`; return; }
   const r = route();
   lastView = r.v+"|"+(r.cat||r.grp||r.mgr||"");
@@ -2325,7 +2326,7 @@ function svEnsure(){
   });
 }
 function renderSales(){
-  const bar=$("#bar"), app=$("#app"); if(bar) bar.hidden=true; if(app) app.hidden=true;
+  const bar=$("#bar"), app=$("#app"); if(bar) bar.style.display="none"; if(app) app.style.display="none";
   svEnsure(); SV.host.hidden=false;
   const [d0,d1] = svDates();
   svQ("#svSub").textContent = "Our LIST next to competitor prices on Australian websites"+(d0?", checked "+svDate(d0)+(d1&&d1!==d0?" to "+svDate(d1):""):"")+". Open the link before quoting a competitor price.";
