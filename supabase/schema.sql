@@ -10,10 +10,11 @@
 --     why_buy: product_selling_points, why_people_buy, why_people_buy_comparison, open_checks, why_people_buy_progress (on)
 --     competitor_prices: product_competitors, competitor_prices (on)      flyers: product_flyers (on)
 --     online_prices: online_prices (off)      decisions: product_internal (off)      price_changes: price_changes (off)
---     review: product_reviews, product_review_competitors, category_reviews (off)
+--     review: competitor_reviews, product_review_status, suggestions, product_reviews, product_review_competitors,
+--       category_reviews (off). The step 3 tables are written only through their functions.
 --   Always team only, no switch: product_costs, product_sales, retailer_sales_info, retailer_codes,
 --     retailer_net_prices, change_history, members.
---   Only Paula (role admin) changes the board; the team switches sections. Every change is copied to change_history.
+--   Only Paula (role admin) changes the board and switches sections. Every change is copied to change_history.
 -- Prices are compared GST-free, as they are. No GST is added anywhere.
 
 -- ---------- team list ----------
@@ -749,12 +750,12 @@ drop policy if exists sections_read on public.sections;
 create policy sections_read on public.sections for select to anon, authenticated using (true);
 grant select on public.sections to anon, authenticated;
 
--- The team switches sections on or off, through save_sections only.
+-- Only Paula (admin) switches sections on or off, through save_sections only (Paula, 27 Nov 2026).
 create or replace function public.save_sections(s jsonb)
 returns void language plpgsql security definer set search_path = public as $$
 declare x jsonb;
 begin
-  if not public.is_team() then raise exception 'Only the team can change what sales see.' using errcode = '42501'; end if;
+  if not public.is_admin() then raise exception 'Only Paula can change what sales see.' using errcode = '42501'; end if;
   for x in select * from jsonb_array_elements(coalesce(s->'items', '[]'::jsonb)) loop
     update public.sections set visible_to_sales = (x->>'visible')::boolean, updated_at = now(), updated_by = coalesce(auth.jwt() ->> 'email', '')
     where section_id = x->>'id' and visible_to_sales is distinct from (x->>'visible')::boolean;
@@ -783,6 +784,281 @@ end $$;
 
 do $$ begin
   begin execute 'alter publication supabase_realtime add table public.sections'; exception when duplicate_object then null; when undefined_object then null; end;
+end $$;
+
+-- ---------- step 3: competitor review, suggestions and approval (David Owen's steps, Paula 27 Nov 2026) ----------
+-- Every competitor line gets separate checks (business, product, website). A Disagree becomes a suggestion.
+-- Nothing changes the live data until Paula approves the suggestion. Two review stages per product:
+-- 1. the category manager who owns the category, 2. David or Luke (Agree or Change).
+-- A product is confirmed when the manager review is done and David or Luke agree.
+
+-- Who is who. members.manager_id links a login to the categories it owns; final_reviewer marks David and Luke.
+alter table public.members add column if not exists manager_id text references public.managers;
+alter table public.members add column if not exists final_reviewer boolean not null default false;
+update public.members set manager_id = 'paula' where lower(email) = 'paula.tomazetti@aidacare.com.au';
+update public.members set manager_id = 'josh' where lower(email) = 'josh.lee@aidacare.com.au';
+update public.members set manager_id = 'anthony' where lower(email) = 'anthony.mason@aidacare.com.au';
+update public.members set manager_id = 'luke' where lower(email) = 'luke.sedgwick@aidacare.com.au';
+update public.members set final_reviewer = true where lower(email) in ('david.owen@aidacare.com.au','luke.sedgwick@aidacare.com.au');
+
+-- Stage 1 answers. site_no 0 is the competitor itself (business and product); 1, 2, 3 are its websites.
+create table if not exists public.competitor_reviews (
+  product_id        text not null references public.products on delete cascade,
+  competitor_no     integer not null,
+  site_no           integer not null default 0,
+  business_ok       text check (business_ok in ('Agree','Disagree')),
+  product_ok        text check (product_ok in ('Agree','Disagree')),
+  website_ok        text check (website_ok in ('Agree','Disagree')),
+  correct_business  text,
+  correct_product   text,
+  correct_url       text,
+  comment           text,
+  reviewed_by       text,
+  reviewed_at       timestamptz,
+  primary key (product_id, competitor_no, site_no)
+);
+
+-- Review status per product.
+create table if not exists public.product_review_status (
+  product_id     text primary key references public.products on delete cascade,
+  manager_done   boolean not null default false,
+  manager_by     text,
+  manager_at     timestamptz,
+  final_answer   text check (final_answer in ('Agree','Change')),
+  final_comment  text,
+  final_by       text,
+  final_at       timestamptz
+);
+
+-- Suggested changes, waiting for Paula. kind: Fix competitor, Fix website, Add competitor.
+create table if not exists public.suggestions (
+  suggestion_id        bigint generated always as identity primary key,
+  product_id           text not null references public.products on delete cascade,
+  competitor_no        integer,
+  site_no              integer,
+  kind                 text not null check (kind in ('Fix competitor','Fix website','Add competitor')),
+  current_value        text,
+  suggested_business   text,
+  suggested_product    text,
+  suggested_website    text,
+  suggested_url        text,
+  comment              text,
+  suggested_by         text not null,
+  suggested_at         timestamptz not null default now(),
+  status               text not null default 'Pending' check (status in ('Pending','Approved','Rejected')),
+  decided_by           text,
+  decided_at           timestamptz,
+  decision_note        text
+);
+create index if not exists suggestions_product_idx on public.suggestions (product_id, status);
+
+-- Competitor list per category: website and the states where each competitor is strong. The weekly price search uses it.
+alter table public.category_main_competitors add column if not exists website_url text;
+alter table public.category_main_competitors add column if not exists strong_states text;   -- e.g. "NSW, VIC"
+
+-- Read: the team always; anyone when the review section is visible to sales. Writes only through the functions below.
+do $$
+declare t text;
+begin
+  foreach t in array array['competitor_reviews','product_review_status','suggestions'] loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('revoke all on public.%I from anon, authenticated', t);
+    execute format('drop policy if exists %I on public.%I', t||'_read', t);
+    execute format('create policy %I on public.%I for select to anon, authenticated using ((select public.is_team()) or (select public.section_visible(%L)))', t||'_read', t, 'review');
+    execute format('grant select on public.%I to anon, authenticated', t);
+    execute format('drop trigger if exists %I on public.%I', t||'_history', t);
+    execute format('create trigger %I after insert or update or delete on public.%I for each row execute function public.log_change()', t||'_history', t);
+  end loop;
+end $$;
+update public.sections set table_names = 'competitor_reviews, product_review_status, suggestions, product_reviews, product_review_competitors, category_reviews',
+  description = 'Competitor review stages, suggestions waiting for Paula, and the category review notes.' where section_id = 'review';
+
+-- Helpers.
+create or replace function public.my_email() returns text language sql stable as $$ select lower(coalesce(auth.jwt() ->> 'email', '')) $$;
+
+create or replace function public.my_role()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce((select jsonb_build_object('team', true, 'admin', m.role = 'admin', 'manager_id', m.manager_id, 'final_reviewer', m.final_reviewer, 'name', m.name)
+    from public.members m where lower(m.email) = public.my_email()), jsonb_build_object('team', false));
+$$;
+revoke all on function public.my_role() from public;
+grant execute on function public.my_role() to anon, authenticated;
+
+create or replace function public.owns_product(pid text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.is_admin() or exists (
+    select 1 from public.products p join public.categories c on c.category_id = p.category_id
+    join public.members m on m.manager_id = c.manager_id
+    where p.product_id = pid and lower(m.email) = public.my_email());
+$$;
+revoke all on function public.owns_product(text) from public;
+grant execute on function public.owns_product(text) to anon, authenticated;
+
+-- Stage 1: save one line. r = {product_id, competitor_no, site_no, business_ok, product_ok, website_ok, correct_business,
+-- correct_product, correct_url, comment}. A Disagree with a correction becomes (or updates) a pending suggestion.
+create or replace function public.save_competitor_check(r jsonb)
+returns void language plpgsql security definer set search_path = public as $$
+declare pid text := r->>'product_id'; cno int := (r->>'competitor_no')::int; sno int := coalesce((r->>'site_no')::int, 0);
+        cname text; csite text; curl text; me text := public.my_email(); want boolean; k text;
+begin
+  if not public.owns_product(pid) then raise exception 'Only the category manager for this product, or Paula, can review it.' using errcode = '42501'; end if;
+  select competitor_name into cname from product_competitors where product_id = pid and competitor_no = cno;
+  if cname is null then raise exception 'Unknown competitor % for %', cno, pid; end if;
+  if sno > 0 then select website, url into csite, curl from competitor_prices where product_id = pid and competitor_no = cno and site_no = sno;
+    if not found then raise exception 'Unknown website % for competitor %', sno, cno; end if; end if;
+  insert into competitor_reviews(product_id, competitor_no, site_no, business_ok, product_ok, website_ok, correct_business, correct_product, correct_url, comment, reviewed_by, reviewed_at)
+  values (pid, cno, sno, nullif(r->>'business_ok',''), nullif(r->>'product_ok',''), nullif(r->>'website_ok',''), nullif(trim(r->>'correct_business'),''),
+          nullif(trim(r->>'correct_product'),''), nullif(trim(r->>'correct_url'),''), nullif(trim(r->>'comment'),''), me, now())
+  on conflict (product_id, competitor_no, site_no) do update set business_ok = excluded.business_ok, product_ok = excluded.product_ok,
+    website_ok = excluded.website_ok, correct_business = excluded.correct_business, correct_product = excluded.correct_product,
+    correct_url = excluded.correct_url, comment = excluded.comment, reviewed_by = excluded.reviewed_by, reviewed_at = excluded.reviewed_at;
+  k := case when sno = 0 then 'Fix competitor' else 'Fix website' end;
+  want := case when sno = 0 then (r->>'business_ok' = 'Disagree' or r->>'product_ok' = 'Disagree') else r->>'website_ok' = 'Disagree' end;
+  if want then
+    update suggestions set suggested_business = nullif(trim(r->>'correct_business'),''), suggested_product = nullif(trim(r->>'correct_product'),''),
+      suggested_website = case when sno > 0 then nullif(trim(r->>'correct_business'),'') end, suggested_url = nullif(trim(r->>'correct_url'),''),
+      comment = nullif(trim(r->>'comment'),''), suggested_by = me, suggested_at = now()
+    where product_id = pid and competitor_no = cno and site_no = sno and kind = k and status = 'Pending';
+    if not found then
+      insert into suggestions(product_id, competitor_no, site_no, kind, current_value, suggested_business, suggested_product, suggested_website, suggested_url, comment, suggested_by)
+      values (pid, cno, sno, k, case when sno = 0 then cname else concat_ws(' ', csite, curl) end,
+        case when sno = 0 then nullif(trim(r->>'correct_business'),'') end, nullif(trim(r->>'correct_product'),''),
+        case when sno > 0 then nullif(trim(r->>'correct_business'),'') end, nullif(trim(r->>'correct_url'),''), nullif(trim(r->>'comment'),''), me);
+    end if;
+  else
+    delete from suggestions where product_id = pid and competitor_no = cno and site_no = sno and kind = k and status = 'Pending';
+  end if;
+  update product_review_status set manager_done = false, manager_by = null, manager_at = null where product_id = pid and manager_done;
+end $$;
+revoke all on function public.save_competitor_check(jsonb) from public, anon;
+grant execute on function public.save_competitor_check(jsonb) to authenticated;
+
+-- Any team member can suggest another competitor product for any product.
+create or replace function public.suggest_competitor(r jsonb)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_team() then raise exception 'Sign in with a team email to suggest a competitor.' using errcode = '42501'; end if;
+  if not exists (select 1 from products where product_id = r->>'product_id') then raise exception 'Unknown product'; end if;
+  if coalesce(trim(r->>'product'),'') = '' then raise exception 'Name the competitor product.'; end if;
+  insert into suggestions(product_id, kind, suggested_business, suggested_product, suggested_website, suggested_url, comment, suggested_by)
+  values (r->>'product_id', 'Add competitor', nullif(trim(r->>'business'),''), trim(r->>'product'), nullif(trim(r->>'website'),''),
+          nullif(trim(r->>'url'),''), nullif(trim(r->>'comment'),''), public.my_email());
+end $$;
+revoke all on function public.suggest_competitor(jsonb) from public, anon;
+grant execute on function public.suggest_competitor(jsonb) to authenticated;
+
+-- Stage 1 done (or reopened) by the category manager.
+create or replace function public.set_manager_review(pid text, done boolean)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owns_product(pid) then raise exception 'Only the category manager for this product, or Paula, can do this.' using errcode = '42501'; end if;
+  insert into product_review_status(product_id, manager_done, manager_by, manager_at)
+  values (pid, done, case when done then public.my_email() end, case when done then now() end)
+  on conflict (product_id) do update set manager_done = excluded.manager_done, manager_by = excluded.manager_by, manager_at = excluded.manager_at;
+end $$;
+revoke all on function public.set_manager_review(text, boolean) from public, anon;
+grant execute on function public.set_manager_review(text, boolean) to authenticated;
+
+-- Stage 2: David or Luke (or Paula) answer Agree or Change.
+create or replace function public.set_final_review(pid text, answer text, note text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not (public.is_admin() or exists (select 1 from members m where lower(m.email) = public.my_email() and m.final_reviewer)) then
+    raise exception 'Only David, Luke or Paula can give the final review.' using errcode = '42501'; end if;
+  if answer is not null and answer not in ('Agree','Change') then raise exception 'Answer Agree or Change.'; end if;
+  if answer = 'Change' and coalesce(trim(note),'') = '' then raise exception 'Say what to change.'; end if;
+  insert into product_review_status(product_id, final_answer, final_comment, final_by, final_at)
+  values (pid, answer, nullif(trim(note),''), case when answer is not null then public.my_email() end, case when answer is not null then now() end)
+  on conflict (product_id) do update set final_answer = excluded.final_answer, final_comment = excluded.final_comment,
+    final_by = excluded.final_by, final_at = excluded.final_at;
+end $$;
+revoke all on function public.set_final_review(text, text, text) from public, anon;
+grant execute on function public.set_final_review(text, text, text) to authenticated;
+
+-- Paula approves or rejects. On approve she can adjust the final values; the live data changes only here.
+-- d = {id, approve, name, website, url, note}
+create or replace function public.decide_suggestion(d jsonb)
+returns void language plpgsql security definer set search_path = public as $$
+declare s suggestions; nm text := nullif(trim(d->>'name'),''); ws text := nullif(trim(d->>'website'),''); u text := nullif(trim(d->>'url'),''); nxt int;
+begin
+  if not public.is_admin() then raise exception 'Only Paula approves suggestions.' using errcode = '42501'; end if;
+  select * into s from suggestions where suggestion_id = (d->>'id')::bigint for update;
+  if not found then raise exception 'Unknown suggestion'; end if;
+  if s.status <> 'Pending' then raise exception 'This suggestion was already decided.'; end if;
+  if coalesce((d->>'approve')::boolean, false) then
+    if s.kind = 'Fix competitor' then
+      if nm is null then raise exception 'Give the competitor product name.'; end if;
+      update product_competitors set competitor_name = nm where product_id = s.product_id and competitor_no = s.competitor_no;
+    elsif s.kind = 'Fix website' then
+      update competitor_prices set website = coalesce(ws, website), url = coalesce(u, url),
+        note = concat_ws('. ', nullif(note,''), 'Website changed on review ' || to_char(current_date, 'DD Mon YYYY') || ', check the price')
+      where product_id = s.product_id and competitor_no = s.competitor_no and site_no = s.site_no;
+    else
+      if nm is null then raise exception 'Give the competitor product name.'; end if;
+      select coalesce(max(competitor_no), 0) + 1 into nxt from product_competitors where product_id = s.product_id;
+      insert into product_competitors(product_id, competitor_no, competitor_name) values (s.product_id, nxt, nm);
+      if ws is not null or u is not null then
+        insert into competitor_prices(product_id, competitor_no, site_no, website, url, note)
+        values (s.product_id, nxt, 1, coalesce(ws, ''), u, 'Added on review, price to check');
+      end if;
+    end if;
+  end if;
+  update suggestions set status = case when coalesce((d->>'approve')::boolean, false) then 'Approved' else 'Rejected' end,
+    decided_by = public.my_email(), decided_at = now(), decision_note = nullif(trim(d->>'note'),'')
+  where suggestion_id = s.suggestion_id;
+end $$;
+revoke all on function public.decide_suggestion(jsonb) from public, anon;
+grant execute on function public.decide_suggestion(jsonb) to authenticated;
+
+-- Paula edits the competitor list of a category: c = {id, items: [{brand, url, states}]}.
+create or replace function public.save_competitor_list(c jsonb)
+returns void language plpgsql security invoker set search_path = public as $$
+declare x jsonb; i int := 0;
+begin
+  if not public.is_admin() then raise exception 'Only Paula changes the competitor list.' using errcode = '42501'; end if;
+  if not exists (select 1 from categories where category_id = c->>'id') then raise exception 'Unknown category'; end if;
+  delete from category_main_competitors where category_id = c->>'id';
+  for x in select value from jsonb_array_elements(coalesce(c->'items','[]'::jsonb)) loop
+    if coalesce(trim(x->>'brand'),'') = '' then continue; end if;
+    i := i + 1;
+    insert into category_main_competitors(category_id, sort_order, brand, website_url, strong_states)
+    values (c->>'id', i, trim(x->>'brand'), nullif(trim(x->>'url'),''), nullif(trim(x->>'states'),''));
+  end loop;
+end $$;
+revoke all on function public.save_competitor_list(jsonb) from public, anon;
+grant execute on function public.save_competitor_list(jsonb) to authenticated;
+
+-- save_category keeps each brand's website and states when the brand names are saved again.
+create or replace function public.save_category(c jsonb)
+returns void language plpgsql security invoker set search_path = public as $$
+declare cid text := c->>'id'; b text; i int := 0; r jsonb := c->'review'; old jsonb;
+begin
+  if not public.is_team() then raise exception 'Only the team can change categories.' using errcode = '42501'; end if;
+  update categories set main_competitors_source = nullif(c->>'mainCompsRef',''), main_competitors_note = nullif(c->>'mainCompsNote','')
+   where category_id = cid;
+  if not found then raise exception 'Unknown category %', cid; end if;
+  select coalesce(jsonb_object_agg(lower(brand), jsonb_build_object('u', website_url, 's', strong_states)), '{}'::jsonb) into old
+    from category_main_competitors where category_id = cid;
+  delete from category_main_competitors where category_id = cid;
+  for b in select value from jsonb_array_elements_text(coalesce(c->'mainComps','[]'::jsonb)) loop
+    i := i + 1;
+    insert into category_main_competitors(category_id, sort_order, brand, website_url, strong_states)
+    values (cid, i, b, old->lower(b)->>'u', old->lower(b)->>'s');
+  end loop;
+  delete from category_reviews where category_id = cid;
+  if jsonb_typeof(r) = 'object' then
+    insert into category_reviews(category_id, gaps, other_products, focus_6_months, focus_12_months, review_date, updated_at)
+    values (cid, nullif(r->>'gaps',''), nullif(r->>'other',''), nullif(r->>'f6',''), nullif(r->>'f12',''),
+            nullif(r->>'date','')::date, coalesce(nullif(r->>'updated','')::timestamptz, now()));
+  end if;
+end $$;
+
+do $$
+declare t text;
+begin
+  foreach t in array array['competitor_reviews','product_review_status','suggestions'] loop
+    begin execute format('alter publication supabase_realtime add table public.%I', t); exception when duplicate_object then null; when undefined_object then null; end;
+  end loop;
 end $$;
 
 -- ---------- old storage ----------

@@ -5,14 +5,14 @@
    Public view, no login: products, LIST, specs, and every section switched "Visible to sales" (sections table).
    Team view, signed in with an email in members: everything, including cost, margin, sales and our net prices to
    retailers, which are always team only. Signed out, team-only tables and switched-off sections are never requested.
-   Only Paula (role admin) changes prices; the team switches sections. */
+   Only Paula (role admin) changes prices and switches sections. */
 (function(){
   "use strict";
   const CFG = window.CPB_CONFIG || {};
   const mkErr = (code, msg) => { const e = new Error(msg || code); e.code = code; return e; };
   const clone = o => o==null ? o : JSON.parse(JSON.stringify(o));
 
-  let sb = null, session = null, team = false, admin = false, authNote = "";
+  let sb = null, session = null, team = false, admin = false, role = {team:false}, authNote = "";
   const hash = location.hash || "";
   const linkType = /type=(invite|recovery|signup|magiclink)/.exec(hash);
 
@@ -23,7 +23,8 @@
       const r = await sb.auth.getSession(); session = r.data && r.data.session;
       if(session){ const t = await sb.rpc("is_team"); team = t.data === true; if(!team) authNote = "This login is not on the team list yet. Ask Paula to add it.";
         /* Paula (role admin in members) is the only one who changes the board until approvals are set up (27 Nov 2026). */
-        if(team){ try{ const a = await sb.rpc("is_admin"); admin = a.data === true; }catch(_){ admin = false; } } }
+        if(team){ try{ const a = await sb.rpc("is_admin"); admin = a.data === true; }catch(_){ admin = false; }
+          try{ const m = await sb.rpc("my_role"); if(m.data && typeof m.data === "object") role = m.data; }catch(_){} } }
     }catch(_){ team = false; }
     sb.auth.onAuthStateChange((ev, s) => {
       session = s;
@@ -38,10 +39,10 @@
     "category_gbb_competitors","category_range_extras","products","product_specs","product_placements","product_codes","product_sizes",
     "product_selling_points","product_flyers","product_competitors","competitor_prices","retailers","retailer_store_states","settings",
     "why_people_buy","why_people_buy_comparison","open_checks","why_people_buy_progress"];
-  const TEAM = ["product_costs","product_sales","product_internal","online_prices","product_reviews","product_review_competitors",
+  const TEAM = ["competitor_reviews","product_review_status","suggestions","product_costs","product_sales","product_internal","online_prices","product_reviews","product_review_competitors",
     "category_reviews","retailer_sales_info","retailer_codes","retailer_net_prices","price_changes"];
   const KEYS = {
-    sections:["sort_order"],
+    sections:["sort_order"], competitor_reviews:["product_id","competitor_no","site_no"], product_review_status:["product_id"], suggestions:["suggestion_id"],
     managers:["manager_id"], manager_categories_to_add:["manager_id","sort_order"], category_groups:["group_id"], categories:["category_id"],
     category_needs:["category_id","sort_order"], category_main_competitors:["category_id","sort_order"], category_gbb_competitors:["category_id","sort_order"],
     category_range_extras:["category_id","sort_order"], products:["product_id"], product_specs:["product_id","line_no"],
@@ -81,7 +82,7 @@
   const SECTION_OF = {product_selling_points:"why_buy", why_people_buy:"why_buy", why_people_buy_comparison:"why_buy", open_checks:"why_buy",
     why_people_buy_progress:"why_buy", product_competitors:"competitor_prices", competitor_prices:"competitor_prices", product_flyers:"flyers",
     online_prices:"online_prices", product_internal:"decisions", price_changes:"price_changes", product_reviews:"review",
-    product_review_competitors:"review", category_reviews:"review"};
+    product_review_competitors:"review", category_reviews:"review", competitor_reviews:"review", product_review_status:"review", suggestions:"review"};
   async function loadAll(){
     const secRows = await fetchAll("sections");
     const on = new Set(secRows.filter(x => x.visible_to_sales).map(x => x.section_id));
@@ -99,6 +100,8 @@
       ["product_competitors","product_id"],["online_prices","product_id"],["product_review_competitors","product_id"],["retailer_store_states","website"],
       ["retailer_codes","website"],["retailer_net_prices","website"]].forEach(([t, k]) => { G[t] = group(T[t], k); });
     const prices = group(T.competitor_prices, "product_id");
+    /* Step 3 competitor review: answers per competitor line, stage status, and suggestions waiting for Paula. */
+    const crL = group(T.competitor_reviews, "product_id"), crS = new Map(T.product_review_status.map(r => [r.product_id, r])), crG = group(T.suggestions, "product_id");
     const wpbR = group(T.why_people_buy, "product_id"), wpbC = group(T.why_people_buy_comparison, "reason_id"),
       wpbK = group(T.open_checks, "product_id"), wpbP = new Map(T.why_people_buy_progress.map(r => [r.product_id, r]));
     const one = (t, k) => new Map(T[t].map(r => [r[k], r]));
@@ -123,6 +126,7 @@
       const id = c.category_id, d = {name:c.name, order:n(c.sort_order), mgr:c.manager_id,
         needs:(G.category_needs.get(id)||[]).map(x => x.need),
         mainComps:(G.category_main_competitors.get(id)||[]).map(x => x.brand),
+        compList:(G.category_main_competitors.get(id)||[]).map(x => ({brand:x.brand, url:s(x.website_url), states:s(x.strong_states)})),
         slotComps:(G.category_gbb_competitors.get(id)||[]).map(x => ({need:x.need, tier:x.tier, name:x.competitor_name, note:s(x.note)})),
         mainCompsRef:s(c.main_competitors_source), mainCompsNote:s(c.main_competitors_note), note:s(c.note), pricesPending:!!c.prices_pending};
       const ex = G.category_range_extras.get(id); if(ex && ex.length) d.rangeExtra = ex.map(x => ({need:x.need, tier:x.tier, name:x.product_name, note:s(x.note)}));
@@ -149,6 +153,12 @@
             result:s(c.result), note:s(c.note), ourUrl:s(c.our_source_url), ourType:s(c.our_source_type), url:s(c.source_url), type:s(c.source_type), date:day(c.date_checked)}))})),
         checks:(wpbK.get(id)||[]).map(x => ({id:x.check_id, issue:s(x.issue), urls:s(x.source_urls).split(/\s+/).filter(Boolean), resolved:!!x.resolved, comment:s(x.comment), date:day(x.date_added)})),
         progress:wpbP.has(id) ? s(wpbP.get(id).status) : "", skipWhy:wpbP.has(id) ? s(wpbP.get(id).reason_if_skipped) : ""};
+      p.crev = {lines:(crL.get(id)||[]).map(x => ({no:x.competitor_no, site:x.site_no, business:s(x.business_ok), product:s(x.product_ok), website:s(x.website_ok),
+          cBusiness:s(x.correct_business), cProduct:s(x.correct_product), cUrl:s(x.correct_url), comment:s(x.comment), by:s(x.reviewed_by), at:s(x.reviewed_at)})),
+        status:(st => st ? {done:!!st.manager_done, doneBy:s(st.manager_by), doneAt:s(st.manager_at), final:s(st.final_answer), finalNote:s(st.final_comment), finalBy:s(st.final_by), finalAt:s(st.final_at)} : null)(crS.get(id)),
+        sugs:(crG.get(id)||[]).map(x => ({id:x.suggestion_id, no:x.competitor_no, site:x.site_no, kind:x.kind, current:s(x.current_value), business:s(x.suggested_business),
+          product:s(x.suggested_product), website:s(x.suggested_website), url:s(x.suggested_url), comment:s(x.comment), by:s(x.suggested_by), at:s(x.suggested_at),
+          status:s(x.status), decidedBy:s(x.decided_by), decidedAt:s(x.decided_at), note:s(x.decision_note)}))};
       if(r.discontinued) p.discontinued = true;
       if(r.image_path) p.img = r.image_path;
       if(r.updated_at) p.updated = r.updated_at;
@@ -281,13 +291,29 @@
     later();
   }
 
-  /* The team switches sections on or off for sales (save_sections checks the login). */
+  /* Only Paula (admin) switches sections on or off for sales (save_sections checks the login). */
   async function saveSections(items){
-    if(!team) throw mkErr("invalid_argument", "Sign in with a team email to change what sales see.");
+    if(!team || !admin) throw mkErr("invalid_argument", "Only Paula can change what sales see.");
     const r = await sb.rpc("save_sections", {s: {items}});
-    if(r.error){ const denied = r.error.code === "42501" || /permission|only the team/i.test(r.error.message || ""); throw mkErr(denied ? "invalid_argument" : "unavailable", r.error.message); }
+    if(r.error){ const denied = r.error.code === "42501" || /permission|only paula/i.test(r.error.message || ""); throw mkErr(denied ? "invalid_argument" : "unavailable", r.error.message); }
     later();
   }
+
+  /* Step 3 calls. Each function checks the login in the database. */
+  async function call(fn, args, who){
+    if(!team) throw mkErr("invalid_argument", "Sign in with a team email first.");
+    const r = await sb.rpc(fn, args);
+    if(r.error){ const denied = r.error.code === "42501" || /permission|only /i.test(r.error.message || ""); const e = mkErr(denied ? "invalid_argument" : "unavailable", r.error.message); throw e; }
+    later();
+  }
+  const review = {
+    saveCheck: r => call("save_competitor_check", {r}),
+    suggest: r => call("suggest_competitor", {r}),
+    setManager: (pid, done) => call("set_manager_review", {pid, done}),
+    setFinal: (pid, answer, note) => call("set_final_review", {pid, answer, note}),
+    decide: d => { if(!admin) throw mkErr("invalid_argument", "Only Paula approves suggestions."); return call("decide_suggestion", {d}); },
+    saveList: c => { if(!admin) throw mkErr("invalid_argument", "Only Paula changes the competitor list."); return call("save_competitor_list", {c}); }
+  };
 
   const DB = {
     collection: coll => ({ onSnapshot: (cb, err) => listen({kind: "coll", coll, cb, err}) }),
@@ -403,6 +429,8 @@
     wpbSave,
     wpbSaveReason,
     saveSections,
+    review,
+    role: () => Object.assign({team:false}, role, {team, admin}),
     signOut: async () => { try{ if(sb) await sb.auth.signOut(); }catch(_){} location.reload(); }
   };
 })();
