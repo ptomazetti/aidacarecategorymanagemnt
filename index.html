@@ -88,6 +88,16 @@ nav.main a:hover{background:rgba(255,255,255,.12);color:#fff}
 nav.main a[aria-current="page"]{background:rgba(255,255,255,.14);box-shadow:inset 0 -3px 0 var(--green)}
 .menubtn{display:none}
 .navacct{display:none}
+.navdd{position:relative}
+.navddb{padding:10px 12px;border-radius:8px;border:0;background:none;color:#fff;font:inherit;font-weight:600;white-space:nowrap;cursor:pointer}
+.navddb:hover{background:rgba(255,255,255,.12)} .navddb[aria-current="page"]{background:rgba(255,255,255,.14);box-shadow:inset 0 -3px 0 var(--green)}
+.navddp{position:absolute;top:calc(100% + 8px);left:0;z-index:60;min-width:300px;max-height:70vh;overflow:auto;background:var(--coal);border-radius:10px;padding:10px 12px;box-shadow:0 12px 28px rgba(0,0,0,.25);display:grid;gap:10px}
+.navddp[hidden]{display:none}
+.navddp .ddg{display:flex;flex-direction:column;gap:2px}
+nav.main .navddp a{padding:6px 10px;border-radius:6px}
+nav.main .navddp a.ddm{font-weight:700;color:#fff}
+nav.main .navddp a.ddc{font-weight:500;color:rgba(255,255,255,.85);padding-left:22px}
+nav.main .navddp a[aria-current="page"]{box-shadow:none;background:rgba(255,255,255,.14)}
 .bar .menubtn{background:transparent;color:#fff;border-color:rgba(255,255,255,.55)}
 .bar .menubtn:hover{border-color:#fff;color:#fff}
 
@@ -491,7 +501,6 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
 .vsu{margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap} .vsu.lo{background:#E3F1F4;color:#005A6B} .vsu.hi,.vsu.eq{background:var(--line2);color:var(--ink)}
 .cdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}
 .flyl{display:inline-flex;align-items:center;min-height:32px;padding:0 12px;border:1px solid var(--field);border-radius:8px;font-size:13px;font-weight:600;color:#006b7e;text-decoration:none;background:#fff} .flyl:hover{border-color:var(--teal);text-decoration:underline}
-.stpick select{min-height:40px;border-radius:10px;border:1px solid var(--field);padding:0 10px;font:600 14px var(--body);color:var(--ink);background:#fff}
 .stbar{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;margin:0 0 16px;padding:10px 14px;border-radius:10px;background:#FFF6E0;border:1px solid #F2D38A;font-size:13px;color:var(--ink)} .stbar a{color:#006b7e}
 .tag.sst{background:#E3F4EA;color:#00603F} .tag.son{background:var(--line2);color:var(--ink)} .tag.sno{background:#fff;color:#5A6670;border:1px solid var(--field)}
 .cbox .cr.na{background:#F4F5F6} .cbox .cr.na a{color:#006b7e} .cbox .cr.na .p{text-decoration:line-through;color:#5A6670}
@@ -521,6 +530,8 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
 @media (max-width:700px){ .catcard{flex-wrap:wrap} .catcard .own{flex-basis:100%} }
 /* Header menu folds into the Menu button below 1320 px, so the search and "Category team login" always fit. */
 @media (max-width:1320px){
+  .navddb{width:100%;text-align:left}
+  .navddp{position:static;min-width:0;max-height:none;box-shadow:none;background:none;padding:2px 0 6px 8px;border-radius:0}
   nav.main{display:none;position:absolute;top:100%;left:0;right:0;background:var(--coal);border-bottom:3px solid var(--green);flex-direction:column;padding:8px 16px 14px;box-shadow:0 10px 20px rgba(57,74,88,.12)}
   .menu-open nav.main{display:flex}
   .menubtn{display:inline-flex;margin-left:auto}
@@ -588,7 +599,6 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
       <input id="gq" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-label="Search products or websites" placeholder="Search products or websites" autocomplete="off" aria-controls="gres">
       <div class="gres" id="gres" hidden></div>
     </div>
-    <label class="stpick"><span class="sr">Customer state</span><select id="stSel" aria-label="Customer state"><option value="">All Australia</option><option>NSW</option><option>VIC</option><option>QLD</option><option>SA</option><option>WA</option><option>TAS</option><option>ACT</option><option>NT</option></select></label>
     <button type="button" class="btn menubtn" id="menuBtn" aria-expanded="false" aria-controls="nav">Menu</button>
     <nav class="main" id="nav" aria-label="Main"></nav>
     <button type="button" class="btn" id="signIn" hidden onclick="CPB.openSignIn()">Category team login</button>
@@ -627,7 +637,9 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
 <script>
 (function(){
 let lastView = "";
-const S = { state:(()=>{ try{ const v=localStorage.getItem("cpb-state"); return ["NSW","VIC","QLD","SA","WA","TAS","ACT","NT"].includes(v)?v:null; }catch(_){ return null; } })(), gxOpen:new Set(), cats:[], prods:new Map(), retail:null, changes:[], settings:{band:5, investUnits:10, investGap:30, listGst:"free"}, canWrite:true, db:null, dl:null,
+/* The customer state filter and the States page were removed (Paula, 27 Nov 2026): state prices are on each product's Detail page. */
+try{ localStorage.removeItem("cpb-state"); }catch(_){}
+const S = { state:null, gxOpen:new Set(), cats:[], prods:new Map(), retail:null, changes:[], settings:{band:5, investUnits:10, investGap:30, listGst:"free"}, canWrite:true, db:null, dl:null,
   q:"", f:"all", brand:null, ours:null, need:null, tiers:new Set(), kind:null, act:null, tact:null, lastCat:null, sideOpen:false,
   tq:"", tf:"all", tcat:"all", sortKey:"cat", sortDir:1, gq:"", got:{c:false,p:false,r:false} };
 const TIERS = [["Good","--lime"],["Better","--green"],["Best","--teal"]];
@@ -872,7 +884,6 @@ function route(){
   if(h==="report") return {v:"report"};
   if(h==="summary") return {v:"summary"};
   if(h==="slots") return {v:"slots"};
-  if(h==="states") return {v:"states"};
   if(h==="discontinued") return {v:"discontinued"};
   if(h==="coverage") return {v:"coverage"};
   const dt = /^detail\/(.+)$/.exec(h);
@@ -898,10 +909,17 @@ function pLink(view, p){ return view==="cat" ? `#cat/${esc(p.cat)}/${esc(p.id)}`
 
 /* ---------- render ---------- */
 function renderNav(r){
-  const items = [["home","Home",r.v==="home"]].concat(MGRS.map(m=>[`mgr/${m.id}`, m.name.split(" ")[0], (r.v==="mgr" && r.mgr===m.id) || (r.v==="cat" && catMgr(catOf(r.cat))===m.id) || (r.v==="grp" && grpMgr(grpOf(r.grp))===m.id)])).concat([["table","Summary",r.v==="table"],["report","Report",r.v==="report"],["states","States",r.v==="states"],["discontinued","Discontinued",r.v==="discontinued"]]);
+  /* Categories is one button that opens every category manager and their categories (Paula, 27 Nov 2026). */
+  const link = ([h,t,on]) => `<a href="#${esc(h)}" ${on?'aria-current="page"':""}>${esc(t)}</a>`;
+  const inCats = ["mgr","cat","grp"].includes(r.v);
+  const panel = MGRS.map(m=>{ const es = mgrEntries(m.id).filter(e=>e.g || e.c.type!=="list" || prodsIn(e.c.id).length);
+    return `<div class="ddg"><a class="ddm" href="#mgr/${esc(m.id)}" ${r.v==="mgr"&&r.mgr===m.id?'aria-current="page"':""}>${esc(m.name)}</a>${es.map(e=>e.g
+      ? `<a class="ddc" href="#grp/${esc(e.g.id)}" ${r.v==="grp"&&r.grp===e.g.id?'aria-current="page"':""}>${esc(e.g.name)}</a>`
+      : `<a class="ddc" href="#cat/${esc(e.c.id)}" ${r.v==="cat"&&r.cat===e.c.id?'aria-current="page"':""}>${esc(e.c.name)}</a>`).join("")}</div>`; }).join("");
+  const cats = `<div class="navdd${S.ddOpen?" open":""}"><button type="button" class="navddb" data-navdd="1" aria-expanded="${!!S.ddOpen}" aria-controls="navddp" ${inCats?'aria-current="page"':""}>Categories <span aria-hidden="true">▾</span></button><div class="navddp" id="navddp" ${S.ddOpen?"":"hidden"}>${panel}</div></div>`;
   /* On phones, Sign in or Sign out sits at the end of the menu instead of on its own row in the header. */
   const inAcct = !!(window.CPB && CPB.signedIn());
-  $("#nav").innerHTML = items.map(([h,t,on])=>`<a href="#${esc(h)}" ${on?'aria-current="page"':""}>${esc(t)}</a>`).join("")
+  $("#nav").innerHTML = link(["home","Home",r.v==="home"]) + cats + [["table","Summary",r.v==="table"],["report","Report",r.v==="report"],["discontinued","Discontinued",r.v==="discontinued"]].map(link).join("")
     + `<button type="button" class="navacct" data-acct="${inAcct?"out":"in"}">${inAcct?"Sign out":"Category team login"}</button>`;
 }
 function render(){
@@ -923,13 +941,10 @@ function render(){
   else if(r.v==="report") $("#app").innerHTML = renderReport();
   else if(r.v==="summary") $("#app").innerHTML = renderSummary();
   else if(r.v==="slots") $("#app").innerHTML = renderSlots();
-  else if(r.v==="states") $("#app").innerHTML = renderStates();
   else if(r.v==="discontinued") $("#app").innerHTML = renderDisc();
   else if(r.v==="detail") $("#app").innerHTML = renderDetail(r.dpid);
   else if(r.v==="coverage") $("#app").innerHTML = renderCoverage();
-  if(S.state && r.v!=="states") $("#app").insertAdjacentHTML("afterbegin", stBanner());
   if(S.authNote) $("#app").insertAdjacentHTML("afterbegin", `<div class="stbar" role="status">${esc(S.authNote)}</div>`);
-  const ss = $("#stSel"); if(ss && ss.value!==(S.state||"")) ss.value = S.state||"";
   if(keep==="q"||keep==="tq"||/^rv-/.test(keep||"")){ const el=document.getElementById(keep); if(el){ el.focus(); try{ el.setSelectionRange(caret,caret); }catch(_){} } }
   renderDrawer(r);
 }
@@ -2333,7 +2348,7 @@ function copyTsv(arr, el, fallback){
 /* ---------- events ---------- */
 function resetCatFilters(){ S.q=""; S.f="all"; S.brand=null; S.need=null; S.tiers=new Set(); S.kind=null; S.act=null; }
 function resetTableFilters(){ S.tq=""; S.tf="all"; S.tcat="all"; S.tact=null; }
-function closeMenu(){ $("#bar").classList.remove("menu-open"); $("#menuBtn").setAttribute("aria-expanded","false"); $("#menuBtn").textContent="Menu"; }
+function closeMenu(){ S.ddOpen = false; const dd = document.querySelector(".navdd"); if(dd){ dd.classList.remove("open"); const p = dd.querySelector(".navddp"); if(p) p.hidden = true; const b = dd.querySelector(".navddb"); if(b) b.setAttribute("aria-expanded","false"); } $("#bar").classList.remove("menu-open"); $("#menuBtn").setAttribute("aria-expanded","false"); $("#menuBtn").textContent="Menu"; }
 function hideGres(clear){ $("#gres").hidden=true; $("#gq").setAttribute("aria-expanded","false"); if(clear){ S.gq=""; $("#gq").value=""; } }
 function focusAfter(sel){ setTimeout(()=>{ const el=document.querySelector(sel); if(el) el.focus(); },0); }
 
@@ -2368,6 +2383,8 @@ document.addEventListener("click", e=>{
   const t = e.target;
   const hit = sel => t.closest(sel);
   let el;
+  if((el=hit("[data-navdd]"))){ S.ddOpen = !S.ddOpen; const dd = el.closest(".navdd"); dd.classList.toggle("open", S.ddOpen); dd.querySelector(".navddp").hidden = !S.ddOpen; el.setAttribute("aria-expanded", String(S.ddOpen)); return; }
+  if(S.ddOpen && !hit(".navdd")){ S.ddOpen = false; const dd = document.querySelector(".navdd"); if(dd){ dd.classList.remove("open"); dd.querySelector(".navddp").hidden = true; dd.querySelector(".navddb").setAttribute("aria-expanded","false"); } }
   if((el=hit("[data-acct]"))){ closeMenu(); if(el.dataset.acct==="out") CPB.signOut(); else CPB.openSignIn(); return; }
   if(!hit(".gsearch")) hideGres(false);
   if((el=hit("#menuBtn"))){ const open=!$("#bar").classList.contains("menu-open"); $("#bar").classList.toggle("menu-open",open); el.setAttribute("aria-expanded",String(open)); el.textContent = open ? "Close" : "Menu"; return; }
@@ -2432,7 +2449,6 @@ document.addEventListener("click", e=>{
 });
 
 function setState(v){ S.state = STATES.includes(v) ? v : null; try{ localStorage.setItem("cpb-state", S.state||""); }catch(_){} render(); }
-document.addEventListener("change", e=>{ if(e.target && e.target.id==="stSel") setState(e.target.value); });
 /* Visible to sales switches save straight away. */
 document.addEventListener("change", async e=>{
   const el = e.target; if(!el || !el.dataset || !el.dataset.sec || !S.canWrite) return;
