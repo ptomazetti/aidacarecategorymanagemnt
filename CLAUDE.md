@@ -4,7 +4,7 @@ Repo ptomazetti/aidacarecategorymanagemnt. Front end on GitHub Pages, database i
 
 Users: the category team (Paula, Josh, Anthony, Luke, David). There is no sales view.
 
-Until the site is fully approved (Paula, 27 Nov 2026): no login is needed to view it, and everyone with the link sees everything, cost and sales included. Only Paula signs in, to make changes. The login and Row Level Security rule below comes back once the site is approved.
+Access (David Owen's step 2, Paula 27 Nov 2026): one site, two levels on the same pages. Public view, no login: products, specs, our LIST, and every section switched "Visible to sales" in the sections table (why people buy, competitor names, products and prices, and flyers start switched on). Team view, signed in with an email in members: everything, including cost, landed cost, margin, A/B/C/D/P1 prices, average sell price and sales, which are always team only and never switchable. The team switches sections in Main competitors and settings; new sections start as team only. Only Paula (role admin) changes prices until the step 3 suggestion and approval flow is built. Follow David Owen's steps document in order.
 
 Follow these rules in every session.
 
@@ -27,7 +27,7 @@ Follow these rules in every session.
 
 ## Where things are
 
-- index.html: the whole site. Edit it directly. It holds no product data. It carries a noindex, nofollow robots tag. Edit buttons show only to Paula when signed in.
+- index.html: the whole site. Edit it directly. It holds no product data. It carries a noindex, nofollow robots tag. Edit buttons show only to Paula when signed in. Team-only sections carry a "Team only" tag for signed-in team members.
 - Why people buy: tables why_people_buy, why_people_buy_comparison, open_checks and why_people_buy_progress, shown on each product page. Progress shows which products are Not started, Done or Skipped.
 - cpb-backend.js: reads the Supabase tables, builds the records the page uses, saves through save_product, save_category and save_settings, and runs the sign-in dialog.
 - supabase/schema.sql: every table, the access rules and the save functions.

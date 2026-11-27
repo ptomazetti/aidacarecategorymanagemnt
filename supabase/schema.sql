@@ -2,18 +2,18 @@
 -- Plain tables with clear column names, so the data can move later to SharePoint or SQL Server.
 -- Every table exports to CSV as it is (Supabase Table Editor > Export, or any SQL client).
 --
--- Who can read what (Row Level Security):
---   Public tables, anyone with the link: managers, manager_categories_to_add, category_groups, categories,
---     category_needs, category_main_competitors, category_gbb_competitors, category_range_extras, products,
---     product_specs, product_placements, product_codes, product_sizes, product_selling_points, product_flyers,
---     product_competitors, competitor_prices, retailers, retailer_store_states, settings,
---     why_people_buy, why_people_buy_comparison, open_checks, why_people_buy_progress.
---   Until the site is approved (Paula, 27 Nov 2026) these can also be read by anyone with the link:
---     product_costs, product_sales, product_internal, online_prices, product_reviews, product_review_competitors,
---     category_reviews, retailer_sales_info, retailer_codes, retailer_net_prices, price_changes.
---     Once approved, put them back to team only (signed in with an email listed in members).
---   Team only: change_history, members.
---   Only the team can change anything. Every change is copied to change_history.
+-- Who can read what (Row Level Security), David Owen's step 2 (Paula, 27 Nov 2026):
+--   Always public, no login: managers, manager_categories_to_add, category_groups, categories, category_needs,
+--     category_main_competitors, category_gbb_competitors, category_range_extras, products, product_specs,
+--     product_placements, product_codes, product_sizes, retailers, retailer_store_states, settings, sections.
+--   Behind a "Visible to sales" switch (sections table; the team can always read them, anyone can when switched on):
+--     why_buy: product_selling_points, why_people_buy, why_people_buy_comparison, open_checks, why_people_buy_progress (on)
+--     competitor_prices: product_competitors, competitor_prices (on)      flyers: product_flyers (on)
+--     online_prices: online_prices (off)      decisions: product_internal (off)      price_changes: price_changes (off)
+--     review: product_reviews, product_review_competitors, category_reviews (off)
+--   Always team only, no switch: product_costs, product_sales, retailer_sales_info, retailer_codes,
+--     retailer_net_prices, change_history, members.
+--   Only Paula (role admin) changes the board; the team switches sections. Every change is copied to change_history.
 -- Prices are compared GST-free, as they are. No GST is added anywhere.
 
 -- ---------- team list ----------
@@ -368,9 +368,8 @@ begin
     execute format('grant select on public.%I to anon', t);
   end loop;
   foreach t in array team loop
-    -- Open until the site is approved. Team only again later: for select to authenticated using (public.is_team())
-    execute format('create policy %I on public.%I for select to anon, authenticated using (true)', t||'_read', t);
-    execute format('grant select on public.%I to anon', t);
+    -- Team only. Tables with a "Visible to sales" switch get their read rule in the step 2 section below.
+    execute format('create policy %I on public.%I for select to authenticated using (public.is_team())', t||'_read', t);
   end loop;
   foreach t in array pub || team loop
     execute format('create policy %I on public.%I for insert to authenticated with check (public.is_team())', t||'_insert', t);
@@ -401,7 +400,8 @@ begin
   values (tg_table_name,
           concat_ws(' / ', r->>'product_id', r->>'category_id', r->>'website', r->>'manager_id', r->>'group_id',
                     r->>'settings_id', r->>'info_id', r->>'change_id', r->>'competitor_no', r->>'site_no', r->>'sort_order', r->>'line_no', r->>'state',
-                    'reason ' || (r->>'reason_no'), 'reason_id ' || (r->>'reason_id'), 'comparison_id ' || (r->>'comparison_id'), 'check_id ' || (r->>'check_id')),
+                    'reason ' || (r->>'reason_no'), 'reason_id ' || (r->>'reason_id'), 'comparison_id ' || (r->>'comparison_id'), 'check_id ' || (r->>'check_id'),
+                    'section ' || (r->>'section_id')),
           lower(tg_op), o::text, n::text, coalesce(auth.jwt() ->> 'email', 'system'));
   return null;
 end $$;
@@ -701,6 +701,88 @@ begin
     exception when duplicate_object then null; when undefined_object then null;
     end;
   end loop;
+end $$;
+
+-- ---------- step 2: public view, team login, Visible to sales (David Owen's steps, Paula 27 Nov 2026) ----------
+-- Always team only, no switch: cost, sales, margin and our net prices to retailers.
+do $$
+declare t text;
+begin
+  foreach t in array array['product_costs','product_sales','retailer_sales_info','retailer_codes','retailer_net_prices'] loop
+    execute format('drop policy if exists %I on public.%I', t||'_read', t);
+    execute format('create policy %I on public.%I for select to authenticated using (public.is_team())', t||'_read', t);
+    execute format('revoke all on public.%I from anon', t);
+  end loop;
+end $$;
+
+-- Sections with a "Visible to sales" switch. New sections start as team only.
+create table if not exists public.sections (
+  section_id        text primary key,
+  name              text not null,
+  description       text,
+  table_names       text not null,              -- the tables this section covers, comma separated
+  sort_order        integer not null,
+  visible_to_sales  boolean not null default false,
+  updated_at        timestamptz,
+  updated_by        text
+);
+insert into public.sections (section_id, name, description, table_names, sort_order, visible_to_sales, updated_at, updated_by) values
+  ('why_buy','Why people buy','Selling points, the Why people buy comparison and its open checks.','product_selling_points, why_people_buy, why_people_buy_comparison, open_checks, why_people_buy_progress',1,true,now(),'setup'),
+  ('competitor_prices','Competitor prices','Competitor names, products and advertised prices.','product_competitors, competitor_prices',2,true,now(),'setup'),
+  ('flyers','Flyers and brochures','Links to our product flyers and brochures.','product_flyers',3,true,now(),'setup'),
+  ('online_prices','Our products on retailer websites','What retailers charge online for our products, and the online average.','online_prices',4,false,now(),'setup'),
+  ('decisions','Flags and decisions','Pricing decisions, proposed LIST, LIST notes and internal notes.','product_internal',5,false,now(),'setup'),
+  ('price_changes','Price change history','Price changes found by the weekly price check.','price_changes',6,false,now(),'setup'),
+  ('review','Competitor and category review','Competitor review with David, and the category review notes.','product_reviews, product_review_competitors, category_reviews',7,false,now(),'setup')
+on conflict (section_id) do nothing;
+
+create or replace function public.section_visible(id text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce((select s.visible_to_sales from public.sections s where s.section_id = id), false);
+$$;
+revoke all on function public.section_visible(text) from public;
+grant execute on function public.section_visible(text) to anon, authenticated;
+
+alter table public.sections enable row level security;
+revoke all on public.sections from anon, authenticated;
+drop policy if exists sections_read on public.sections;
+create policy sections_read on public.sections for select to anon, authenticated using (true);
+grant select on public.sections to anon, authenticated;
+
+-- The team switches sections on or off, through save_sections only.
+create or replace function public.save_sections(s jsonb)
+returns void language plpgsql security definer set search_path = public as $$
+declare x jsonb;
+begin
+  if not public.is_team() then raise exception 'Only the team can change what sales see.' using errcode = '42501'; end if;
+  for x in select * from jsonb_array_elements(coalesce(s->'items', '[]'::jsonb)) loop
+    update public.sections set visible_to_sales = (x->>'visible')::boolean, updated_at = now(), updated_by = coalesce(auth.jwt() ->> 'email', '')
+    where section_id = x->>'id' and visible_to_sales is distinct from (x->>'visible')::boolean;
+  end loop;
+end $$;
+revoke all on function public.save_sections(jsonb) from public, anon;
+grant execute on function public.save_sections(jsonb) to authenticated;
+
+drop trigger if exists sections_history on public.sections;
+create trigger sections_history after insert or update or delete on public.sections for each row execute function public.log_change();
+
+-- Section tables: the team can always read them; anyone can when the section is visible to sales.
+do $$
+declare r record;
+begin
+  for r in select * from (values
+      ('product_selling_points','why_buy'),('why_people_buy','why_buy'),('why_people_buy_comparison','why_buy'),('open_checks','why_buy'),('why_people_buy_progress','why_buy'),
+      ('product_competitors','competitor_prices'),('competitor_prices','competitor_prices'),
+      ('product_flyers','flyers'),('online_prices','online_prices'),('product_internal','decisions'),('price_changes','price_changes'),
+      ('product_reviews','review'),('product_review_competitors','review'),('category_reviews','review')) v(t, s) loop
+    execute format('drop policy if exists %I on public.%I', r.t||'_read', r.t);
+    execute format('create policy %I on public.%I for select to anon, authenticated using ((select public.is_team()) or (select public.section_visible(%L)))', r.t||'_read', r.t, r.s);
+    execute format('grant select on public.%I to anon', r.t);
+  end loop;
+end $$;
+
+do $$ begin
+  begin execute 'alter publication supabase_realtime add table public.sections'; exception when duplicate_object then null; when undefined_object then null; end;
 end $$;
 
 -- ---------- old storage ----------

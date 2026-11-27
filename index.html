@@ -87,6 +87,7 @@ nav.main a{padding:10px 12px;border-radius:8px;text-decoration:none;color:#fff;f
 nav.main a:hover{background:rgba(255,255,255,.12);color:#fff}
 nav.main a[aria-current="page"]{background:rgba(255,255,255,.14);box-shadow:inset 0 -3px 0 var(--green)}
 .menubtn{display:none}
+.navacct{display:none}
 .bar .menubtn{background:transparent;color:#fff;border-color:rgba(255,255,255,.55)}
 .bar .menubtn:hover{border-color:#fff;color:#fff}
 
@@ -248,6 +249,7 @@ nav.main a[aria-current="page"]{background:rgba(255,255,255,.14);box-shadow:inse
 .chip i{width:8px;height:8px;border-radius:2px;background:var(--c,var(--mist));display:inline-block}
 .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .stats > div{background:var(--sunk);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.stats > div:last-child:nth-child(odd){grid-column:1 / -1}
 .stats .k{font-size:12px;color:var(--text)}
 .stats .v{font:700 19px/1.2 var(--display);color:var(--ink)}
 .stats .s{font-size:12px;color:var(--text)}
@@ -533,6 +535,8 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
 @media (max-width:700px){
   .bar-in{flex-wrap:wrap;padding:10px 14px;gap:10px}
   .gsearch{order:3;flex:1 1 100%;max-width:none}
+  .bar-in #signIn,.bar-in #signOut{display:none!important}
+  nav.main .navacct{display:block;padding:10px 12px;border:0;border-top:1px solid rgba(255,255,255,.18);margin-top:6px;border-radius:0;background:none;color:#fff;font:inherit;font-weight:600;text-align:left;cursor:pointer}
   .wrap{padding:16px 14px 40px}
   h1{font-size:24px}
   .ov{grid-template-columns:1fr 1fr}
@@ -591,6 +595,10 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
 </div>
 <div class="overlay" id="ovSites" role="dialog" aria-modal="true" aria-labelledby="sitesTitle">
   <div class="sheet" style="width:min(560px,100%)">
+    <div class="sec"><h3>Visible to sales</h3>
+      <p class="small" style="margin-top:4px">People who are not signed in see only the ticked sections. Products, specs and our LIST always show. Cost, margin, sales and our net prices to retailers are always team only. A tick saves straight away.</p>
+      <div id="visForm" style="display:grid;gap:8px;margin-top:10px"></div><span class="small" id="visMsg" aria-live="polite"></span>
+    </div>
     <div class="sec"><h3 id="sitesTitle">Main competitors and settings</h3>
       <div id="sitesForm" style="display:grid;gap:12px;margin-top:10px"></div>
       <div class="ours-grid" style="margin-top:12px">
@@ -627,6 +635,12 @@ const brandOk = p => !S.ours || (S.ours==="aspire") === isAspire(p);
 const noSrc = t => String(t==null?"":t).replace(/\s*\(match \u0043adence SO\)/g,"").replace(/\u0043adence SO/g,"sales report").replace(/\u0043adence/g,"sales report");
 /* Category managers on the board (home page), from the managers table. "todo" = their categories not on the board yet. */
 let MGRS = [];
+/* Sections with a "Visible to sales" switch (sections table, David Owen's step 2). The team sees every section; people
+   who are not signed in see only the sections switched on. The database applies the same switch. */
+let SECTIONS = [];
+const secOn = id => !!(SECTIONS.find(x=>x.id===id)||{}).visible;
+const vis = id => !!S.team || secOn(id);
+const teamTag = id => S.team && !secOn(id) ? `<span class="tag sno" title="Not visible to sales. Change it in Main competitors and settings.">Team only</span>` : "";
 const $ = s => document.querySelector(s);
 const esc = v => String(v==null?"":v).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num = v => { if(v==null||v==="") return null; const n = parseFloat(String(v).replace(/[^0-9.\-]/g,"")); return isFinite(n)?n:null; };
@@ -702,7 +716,7 @@ function limits(){ return { u: num(S.settings.investUnits) ?? 10, g: num(S.setti
 function facts(p){
   const i=info(p), ch=unitChg(p), abs = v => Math.abs(v).toFixed(0)+"%";
   const pos = i.gap==null ? "" : basisWord(i)+" "+(i.st==="above" ? abs(i.gap)+" above market" : i.st==="below" ? abs(i.gap)+" below market" : "in line with market");
-  const ut = ch==null ? (p.sales && p.sales.units>0 && p.sales.prior===0 ? "no sales last year to compare" : fewPrior(p) ? "too few sales last year to compare" : (p.sales ? "" : "no sales on file")) : (Math.abs(ch)<3 ? "units steady on last year" : `units ${ch>0?"up":"down"} ${abs(ch)} on last year`)+ucNote(p);
+  const ut = ch==null ? (p.sales && p.sales.units>0 && p.sales.prior===0 ? "no sales last year to compare" : fewPrior(p) ? "too few sales last year to compare" : (p.sales || !S.team ? "" : "no sales on file")) : (Math.abs(ch)<3 ? "units steady on last year" : `units ${ch>0?"up":"down"} ${abs(ch)} on last year`)+ucNote(p);
   return [pos, ut].filter(Boolean).join(", ");
 }
 function suggest(p){
@@ -871,7 +885,10 @@ function pLink(view, p){ return view==="cat" ? `#cat/${esc(p.cat)}/${esc(p.id)}`
 /* ---------- render ---------- */
 function renderNav(r){
   const items = [["home","Home",r.v==="home"]].concat(MGRS.map(m=>[`mgr/${m.id}`, m.name.split(" ")[0], (r.v==="mgr" && r.mgr===m.id) || (r.v==="cat" && catMgr(catOf(r.cat))===m.id) || (r.v==="grp" && grpMgr(grpOf(r.grp))===m.id)])).concat([["table","Summary",r.v==="table"],["report","Report",r.v==="report"],["states","States",r.v==="states"],["discontinued","Discontinued",r.v==="discontinued"]]);
-  $("#nav").innerHTML = items.map(([h,t,on])=>`<a href="#${esc(h)}" ${on?'aria-current="page"':""}>${esc(t)}</a>`).join("");
+  /* On phones, Sign in or Sign out sits at the end of the menu instead of on its own row in the header. */
+  const inAcct = !!(window.CPB && CPB.signedIn());
+  $("#nav").innerHTML = items.map(([h,t,on])=>`<a href="#${esc(h)}" ${on?'aria-current="page"':""}>${esc(t)}</a>`).join("")
+    + `<button type="button" class="navacct" data-acct="${inAcct?"out":"in"}">${inAcct?"Sign out":"Sign in"}</button>`;
 }
 function render(){
   if(!S.ready) return;
@@ -1023,7 +1040,7 @@ function renderHome(){
   return `<h1 class="sr">Category Pricing Board</h1>${S.canWrite?"":`<p class="stbar" role="status">View only. Paula approves every change.</p>`}
   <section class="hsec" aria-labelledby="mgrH"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 id="mgrH">By category manager</h2><span class="legend"><i class="above"></i>Above <i class="inline"></i>In line <i class="below"></i>Below <i class="none"></i>No market price</span></div><div class="mgrs">${mgrs}</div></section>
   ${gapHtml}
-  ${S.canWrite?`<p class="foot"><button type="button" class="linkbtn" id="editSites">Main competitors and settings</button></p>`:""}`;
+  ${S.team?`<p class="foot"><button type="button" class="linkbtn" id="editSites">Main competitors and settings</button></p>`:""}`;
 }
 function renderMgr(id){
   const m = mgrOf(id), cats = mgrCats(id), view = "mgr/"+id;
@@ -1178,7 +1195,7 @@ function priceLine(p, i){
 function histBox(p){
   const h = histOf(p);
   if(!h.length) return "";
-  return `<div style="display:flex;flex-direction:column;gap:10px"><h3>Price changes</h3>${h.length ? `<div class="cbox">${h.slice(0,20).map(c=>`<div class="cr"><span>${esc(fmtDate(c.date))}, ${esc(c.site||"")}<span class="nt">${esc(c.who||"")}</span></span><span class="p">${money(num(c.old))} to ${money(num(c.new))}</span><span class="small">${gapTxt(gapOf(num(c.new),num(c.old)))}</span></div>`).join("")}</div>` : `<p class="small">No price changes recorded yet.</p>`}</div>`;
+  return `<div style="display:flex;flex-direction:column;gap:10px"><h3>Price changes${teamTag("price_changes")}</h3>${h.length ? `<div class="cbox">${h.slice(0,20).map(c=>`<div class="cr"><span>${esc(fmtDate(c.date))}, ${esc(c.site||"")}<span class="nt">${esc(c.who||"")}</span></span><span class="p">${money(num(c.old))} to ${money(num(c.new))}</span><span class="small">${gapTxt(gapOf(num(c.new),num(c.old)))}</span></div>`).join("")}</div>` : `<p class="small">No price changes recorded yet.</p>`}</div>`;
 }
 function cmpPick(p){
   if(isLeave(p)) return "";
@@ -1202,11 +1219,10 @@ function cmpBox(p){
       [LL("LIST"), a.listC!=null?money0(a.listC):"Not set", bi.listC!=null?money0(bi.listC):"Not set"],
       ["Market avg", a.m.n?money0(a.m.avg):"n/a", bi.m.n?money0(bi.m.avg):"n/a"],
       ["Vs market", a.gap!=null?gapTxt(a.gap):"n/a", bi.gap!=null?gapTxt(bi.gap):"n/a"],
-      ["Online avg", a.o.n?money0(a.o.avg):"n/a", bi.o.n?money0(bi.o.avg):"n/a"],
-      ["Units, last 12 months", units(p), units(b)],
-      ["GM%", gmv(p), gmv(b)],
+      ...(vis("online_prices") ? [["Online avg", a.o.n?money0(a.o.avg):"n/a", bi.o.n?money0(bi.o.avg):"n/a"]] : []),
+      ...(S.team ? [["Units, last 12 months", units(p), units(b)], ["GM%", gmv(p), gmv(b)]] : []),
       ["Spec", esc(p.spec.join(" · "))||"n/a", esc(b.spec.join(" · "))||"n/a"],
-      ["Why people buy it", why(p), why(b)],
+      ["Selling points", why(p), why(b)],
       ["Decision", actPill(actionOf(p).k,p), actPill(actionOf(b).k,b)]];
   } else {
     const c = compsOf(p)[+k.slice(2)]; if(!c) return ""; title = c.name;
@@ -1217,7 +1233,7 @@ function cmpBox(p){
       ["Price range", "", v.length>1?money(Math.min(...v))+" to "+money(Math.max(...v)):(v.length?money(v[0]):"n/a")],
       ["Websites", "", st.map(s=>`<div>${esc(s.site)} ${money(num(s.p))}${safeUrl(s.url)?` <a href="${esc(safeUrl(s.url))}" target="_blank" rel="noopener">Open page</a>`:""}</div>`).join("")],
       ["Spec", esc(p.spec.join(" · "))||"n/a", `<span class="small">Not on the board yet</span>`],
-      ["Why people buy it", why(p), `<span class="small">Not on the board</span>`]];
+      ["Selling points", why(p), `<span class="small">Not on the board</span>`]];
   }
   return `<section class="cmpw" aria-labelledby="cmpH"><div class="row" style="justify-content:space-between;align-items:center"><h3 id="cmpH">${esc(p.name)} vs ${esc(title)}</h3><button type="button" class="btn" id="cmpX">Close comparison</button></div><table class="cmpt"><tbody>${rows.map(([l,x,y],ri)=>`<tr${ri===0?' class="hd"':""}><th scope="row">${l}</th><td>${x}</td><td>${y}</td></tr>`).join("")}</tbody></table></section>`;
 }
@@ -1232,11 +1248,11 @@ function prvText(r){ return prvEntries(r).map(x=>x.name+": "+(x.k?prvLbl(x.k):"N
 function prodReview(p){
   const saved = p.review||{}, ro = !S.db || !S.canWrite, id = esc(p.id), cs = compsOf(p);
   if(ro){ if(!reviewed(p)) return "";
-    return `<div class="prv"><div class="row" style="justify-content:space-between;align-items:baseline"><h3>Review with David</h3><span class="small">${saved.date?"Saved "+esc(fmtDate(saved.date)):""}</span></div>
+    return `<div class="prv"><div class="row" style="justify-content:space-between;align-items:baseline"><h3>Review with David${teamTag("review")}</h3><span class="small">${saved.date?"Saved "+esc(fmtDate(saved.date)):""}</span></div>
       ${prvEntries(saved).map(x=>`<p class="prl"><b>${esc(x.name)}:</b> ${x.k?esc(prvLbl(x.k)):""}${x.note?`${x.k?", ":""}${esc(x.note)}`:""}</p>`).join("")}
       ${saved.add?`<p class="prl"><b>Competitors to add:</b> ${esc(saved.add)}</p>`:""}${saved.other?`<p class="prl"><b>Other changes:</b> ${esc(saved.other)}</p>`:""}</div>`; }
   const r = prvDraft(p), get = name => r.comps.find(y=>y.name===name) || {k:"",note:""};
-  return `<form class="prv" data-prv="${id}" novalidate><div class="row" style="justify-content:space-between;align-items:baseline"><h3>Review with David</h3><span class="small">${saved.applied&&saved.applied.date?"Changes applied "+esc(fmtDate(saved.applied.date))+". ":""}${saved.date?"Saved "+esc(fmtDate(saved.date)):"Not reviewed yet"}. Saves as you go.</span></div>
+  return `<form class="prv" data-prv="${id}" novalidate><div class="row" style="justify-content:space-between;align-items:baseline"><h3>Review with David${teamTag("review")}</h3><span class="small">${saved.applied&&saved.applied.date?"Changes applied "+esc(fmtDate(saved.applied.date))+". ":""}${saved.date?"Saved "+esc(fmtDate(saved.date)):"Not reviewed yet"}. Saves as you go.</span></div>
     ${cs.length?cs.map((c,ci)=>{ const e=get(c.name); return `<div class="prr"><span class="n">${esc(c.name)}</span><span class="qopts" role="group" aria-label="${esc(c.name)}">${PRV.map(([k,l])=>`<button type="button" class="qopt" data-prk="${k}" data-prc="${ci}" aria-pressed="${e.k===k}">${l}</button>`).join("")}</span><input data-prn="${ci}" aria-label="Note for ${esc(c.name)}" placeholder="Replace with, or why" value="${esc(e.note||"")}" autocomplete="off"></div>`; }).join(""):`<p class="small">No competitors listed yet.</p>`}
     <div class="fld"><label for="prvAdd">Competitors to add</label><textarea id="prvAdd" data-prf="add" rows="2" placeholder="Product, brand and website">${esc(r.add||"")}</textarea></div>
     <div class="fld"><label for="prvOther">Other changes</label><textarea id="prvOther" data-prf="other" rows="2">${esc(r.other||"")}</textarea></div>
@@ -1274,8 +1290,9 @@ const WPB_RES = {"Better":"sst", "Same":"eq", "Worse":"lo", "Not proven":"sno", 
 const wpbOf = p => p.wpb || {reasons:[], checks:[], progress:""};
 const srcLink = (u, t, l) => safeUrl(u) ? `<a href="${esc(safeUrl(u))}" target="_blank" rel="noopener">${esc(l)}${t?" ("+esc(t)+")":""}</a>` : "";
 function wpbBox(p){
+  if(!vis("why_buy")) return "";
   const w = wpbOf(p), reasons = w.reasons.slice().sort((a,b)=>a.no-b.no), ed = S.canWrite && S.wpbEd && S.wpbEd.pid===p.id ? S.wpbEd : null;
-  const head = `<div class="row" style="justify-content:space-between;align-items:baseline"><h3>Why people buy</h3><span class="small">${reasons.length?(reasons.every(r=>r.status==="Confirmed")?"Confirmed":"Proposed until the category manager confirms"):""}</span></div>`;
+  const head = `<div class="row" style="justify-content:space-between;align-items:baseline"><h3>Why people buy${teamTag("why_buy")}</h3><span class="small">${reasons.length?(reasons.every(r=>r.status==="Confirmed")?"Confirmed":"Proposed until the category manager confirms"):""}</span></div>`;
   if(!reasons.length && !w.checks.length) return `<div class="szbox">${head}<p class="small" style="margin:0">${w.progress==="Skipped" ? "Skipped"+(w.skipWhy?": "+esc(w.skipWhy):".") : "Not filled in yet."}</p></div>`;
   const msg = S.wpbMsg && S.wpbMsg.pid===p.id ? esc(S.wpbMsg.t) : "";
   const body = reasons.map(r => ed && ed.rid===r.id ? wpbForm(p, r, ed) : wpbView(r)).join("");
@@ -1396,18 +1413,18 @@ function detail(p){
     return l!=null ? gapOf(num(x.p), l) : null; };
   const nCheap = onSort.filter(x=>{ const g=vsL(x); return g!=null && g < -0.5; }).length;
   const oTag = x => { const g=vsL(x); return g==null ? "" : g < -0.5 ? `<span class="tag lo">${Math.abs(g).toFixed(0)}% below our LIST</span>` : g <= 0.5 ? `<span class="tag eq">Same as LIST</span>` : `<span class="tag hi">${g.toFixed(0)}% above LIST</span>`; };
-  const ours = (isLeave(p) || !onRows.length) ? "" : `<div style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between;align-items:baseline"><h3>Our products in other websites</h3><span class="small${nCheap?" olo":""}">${i.listC==null?"No LIST price to compare":nCheap?`Cheaper than our LIST on ${nCheap} of ${onSort.length} website${onSort.length>1?"s":""}`:"No website below our LIST"}</span></div><div class="cbox ours"><div class="ch">Aspire ${esc(p.name)}</div>${onSort.map(x=>{ const g=vsL(x); return site(x,false,p.id,oTag(x)+stTag(x), [g!=null && g < -0.5 ? "cheap" : "", siteOK(x)?"":"na"].filter(Boolean).join(" ")); }).join("")}</div></div>`;
-  const dates = [...new Set(p.comps.flatMap(c=>c.sites.map(x=>x.date)).concat(p.online.sites.map(x=>x.date)).filter(Boolean))].map(fmtDate).join(", ");
+  const ours = (isLeave(p) || !onRows.length) ? "" : `<div style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between;align-items:baseline"><h3>Our products in other websites${teamTag("online_prices")}</h3><span class="small${nCheap?" olo":""}">${i.listC==null?"No LIST price to compare":nCheap?`Cheaper than our LIST on ${nCheap} of ${onSort.length} website${onSort.length>1?"s":""}`:"No website below our LIST"}</span></div><div class="cbox ours"><div class="ch">Aspire ${esc(p.name)}</div>${onSort.map(x=>{ const g=vsL(x); return site(x,false,p.id,oTag(x)+stTag(x), [g!=null && g < -0.5 ? "cheap" : "", siteOK(x)?"":"na"].filter(Boolean).join(" ")); }).join("")}</div></div>`;
+  const dates = [...new Set(p.comps.flatMap(c=>c.sites.map(x=>x.date)).concat(p.online.sites.map(x=>x.date)).filter(Boolean))].sort().map(fmtDate).join(", ");
   const exS = i.list!=null && gstF()>1 ? money(i.list)+" ex GST. " : "";
   const listS = i.propC!=null ? LL("Proposed")+" "+money0(i.propC)+(i.m.avg!=null?", "+Math.abs(gapOf(i.propC,i.m.avg)).toFixed(1)+"% "+(gapOf(i.propC,i.m.avg)<0?"below":"above")+" market":"") : "";
   return `<div class="dhead"><h2 id="dName">${esc(p.name)}</h2><span class="small" id="dMsg" aria-live="polite"></span><button type="button" class="btn" data-export="${esc(p.id)}">${S.dl?"Export to Excel":"Copy for Excel"}</button>${S.canWrite?`<button type="button" class="btn primary" data-edit="${esc(p.id)}">Edit prices</button>`:""}<button type="button" class="xbtn" id="dClose" aria-label="Close details">×</button></div>
   <div class="dbody">${cmpBox(p)}<div class="dcol">
-    <div class="dtop">${thumb(p)}<div style="display:flex;flex-direction:column;gap:8px;min-width:0">${(places||p.placements.length)?`<div class="row">${gbbChips(p)}${places}</div>`:""}${p.spec.length?`<span class="small">${esc(p.spec.join(" · "))}</span>`:""}${codesOf(p).length?`<span class="small">Codes: ${esc(codesOf(p).join(", "))}</span>`:""}${(p.flyers||[]).length?`<span class="row" style="gap:8px">${flyLinks(p)}</span>`:""}${reasonsOf(p)?`<div class="why"><span class="lb">Why people buy it</span><ol>${reasonsOf(p).map(r=>`<li>${esc(r)}</li>`).join("")}</ol></div>`:""}</div></div>
+    <div class="dtop">${thumb(p)}<div style="display:flex;flex-direction:column;gap:8px;min-width:0">${(places||p.placements.length)?`<div class="row">${gbbChips(p)}${places}</div>`:""}${p.spec.length?`<span class="small">${esc(p.spec.join(" · "))}</span>`:""}${codesOf(p).length?`<span class="small">Codes: ${esc(codesOf(p).join(", "))}</span>`:""}${(p.flyers||[]).length?`<span class="row" style="gap:8px">${flyLinks(p)}</span>`:""}${reasonsOf(p)?`<div class="why"><span class="lb">Selling points${teamTag("why_buy")}</span><ol>${reasonsOf(p).map(r=>`<li>${esc(r)}</li>`).join("")}</ol></div>`:""}</div></div>
     ${cmpPick(p)}
     ${p.compFlag?`<div class="actbox" style="--c:var(--lime)"><div class="row"><span class="act a-watch">Check comparison</span></div><p>${esc(p.compFlag)}</p></div>`:""}
     <div class="stats">
       <div><span class="k">${LL(i.sz ? basisWord(i) : "Our LIST")}</span><span class="v">${i.listC!=null?money0(i.listC):"Not set"}</span><span class="s">${p.listSrc?esc(p.listSrc)+" ":""}${p.price.listNote?esc(p.price.listNote)+" ":""}${exS}${listS || (i.gapL!=null && i.basis==="online" ? "LIST "+(gapClass(i.gapL)==="inline"?"in line with market":Math.abs(i.gapL).toFixed(1)+"% "+(i.gapL<0?"below":"above")+" market") : "")}</span></div>
-      ${isLeave(p)?"":`<div><span class="k">Online average</span><span class="v">${i.o.n?money0(i.o.avg):"n/a"}</span><span class="s">${i.o.n?(i.o.n>1?"Average of "+i.o.n+" websites, "+money(i.o.low)+" to "+money(i.o.high):"1 website"):"No online price yet"}</span></div>`}
+      ${isLeave(p)||!vis("online_prices")?"":`<div><span class="k">Online average${teamTag("online_prices")}</span><span class="v">${i.o.n?money0(i.o.avg):"n/a"}</span><span class="s">${i.o.n?(i.o.n>1?"Average of "+i.o.n+" websites, "+money(i.o.low)+" to "+money(i.o.high):"1 website"):(p.online.sites.some(x=>num(x.p)!=null) && i.sz ? "No "+esc((SZ[i.sz]||i.sz).toLowerCase())+" online price. Our online prices are for other "+((p.sizes||{}).kind==="type"?"types":"sizes")+"." : "No online price yet")}</span></div>`}
       <div><span class="k">Market average</span><span class="v">${money0(i.m.avg)}</span><span class="s">${i.m.n?"Average of "+i.m.c+" competitor"+(i.m.c>1?"s":"")+(i.sz?", "+szName(i.sz, i.szLow)+" only":"")+", each counted once. "+i.m.n+" price"+(i.m.n>1?"s":"")+", "+money(i.m.low)+" to "+money(i.m.high):"No competitor prices"}</span></div>
       <div><span class="k">${i.basis==="online"?"Online vs market":"LIST vs market"}</span><span style="margin-top:4px">${i.gap!=null?gapPill(i.gap):`<span class="s">${i.m.n?"No price to compare":"No competitor prices"}</span>`}</span></div>
       ${(()=>{ const ne = (p.netEnd||null), nv = ne ? ne[0] : (s&&s.net!=null ? s.net : null), skR = i.sku ? skuOf(p) : null, rr = skR ? skR.rows.find(r=>r.k===skR.cfg.ref) : null, lr = rr && rr.list!=null ? rr.list : num(p.price.list); if(nv==null) return "";
@@ -1418,7 +1435,7 @@ function detail(p){
   </div><div class="dcol">
     ${ours}
     ${sizeBox(p, i)}
-    <div style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between"><h3>Competitor prices</h3><span class="small">${dates?"Checked "+esc(dates):""}</span></div>${lanes}${comps||`<p class="small">No competitors listed.</p>`}</div>
+    ${vis("competitor_prices")?`<div style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between"><h3>Competitor prices${teamTag("competitor_prices")}</h3><span class="small">${dates?"Checked "+esc(dates):""}</span></div>${lanes}${comps||`<p class="small">No competitors listed.</p>`}</div>`:""}
     ${isLeave(p) ? "" : wpbBox(p)}
     ${prodReview(p)}
     ${isLeave(p) ? "" : histBox(p)}
@@ -1441,9 +1458,10 @@ function tableCols(){
   const anyProp = current().some(p=>num(p.price.proposed)!=null);
   const c = [["name","Product"],["action","Flag or decision"],["our",LL("LIST")]];
   if(anyProp) c.push(["prop",LL("Proposed LIST")]);
-  c.push(["onl","Online average"],["avg","Market average"],["gapL","LIST vs market"]);
+  if(vis("online_prices")) c.push(["onl","Online average"]);
+  c.push(["avg","Market average"],["gapL","LIST vs market"]);
   if(anyProp) c.push(["gapProp","Proposed vs market"]);
-  c.push(["gma","Actual GM%"]);
+  if(S.team) c.push(["gma","Actual GM%"]);
   return c;
 }
 function tableRows(){
@@ -1510,8 +1528,9 @@ function renderTable(){
 }
 function tableData(r){
   const head = ["Product","Category","Action","Reason","Confirmed","Status",gstF()>1?"LIST ex GST":"LIST",gstF()>1?LL("LIST"):"LIST to compare",gstF()>1?"Proposed LIST ex GST":"Proposed LIST",gstF()>1?LL("Proposed LIST"):"Proposed LIST to compare","Online average","Online websites","Online low","Online high","Market average","Market low","Market high","Competitors","Competitor prices","Online vs market %","LIST vs market %","Online vs LIST %","Proposed vs market %","GM% at LIST","Units last 12 months","Units change %","Net price per unit","Actual GM%"];
+  if(!S.team) head.length -= 5; /* margin and sales columns: team only */
   const f = v => v==null?"":(typeof v==="number"? (Math.round(v*100)/100) : String(v).replace(/[\t\n\r]/g," "));
-  return [head].concat(r.map(x=>[x.name,x.cat,actMeta(x.action)[1],x.actionWhy,x.actionBy,x.status,x.ourEx,x.our,x.propEx,x.prop,x.onl,x.onN,x.onLow,x.onHigh,x.avg,x.low,x.high,x.nc,x.n,x.gapO,x.gapL,x.oVsL,x.gapProp,x.gm,x.units,x.uchg,x.net,x.gma].map(f)));
+  return [head].concat(r.map(x=>[x.name,x.cat,actMeta(x.action)[1],x.actionWhy,x.actionBy,x.status,x.ourEx,x.our,x.propEx,x.prop,x.onl,x.onN,x.onLow,x.onHigh,x.avg,x.low,x.high,x.nc,x.n,x.gapO,x.gapL,x.oVsL,x.gapProp,x.gm,x.units,x.uchg,x.net,x.gma].map(f).slice(0, head.length)));
 }
 /* Excel workbook for one manager: one tab per category. SheetJS loads only when asked. */
 const XLSX_SRC = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
@@ -1776,18 +1795,20 @@ function renderSummary(){
 }
 function summaryData(){
   const head = ["Decision","Product","Category","Reason","Decided on","LIST"+(gstF()>1?" ex GST":""),"Proposed LIST"+(gstF()>1?" ex GST":""),"Online average","Online websites","Market average","Competitors","Vs market %","Compared on","Units last 12 months","Units change %"];
+  if(!S.team) head.length -= 2;
   const f = v => v==null?"":(typeof v==="number"? Math.round(v*100)/100 : String(v).replace(/[\t\n\r]/g," "));
   const rv = liveProds().filter(reviewed), lst = (r,k) => prvEntries(r).filter(x=>x.k===k).map(x=>x.name+(x.note?" ("+x.note+")":"")).join("; ");
-  return [head].concat(summaryRows().map(x=>{ const s=x.p.sales; return [actMeta(x.a.k)[1],x.p.name,x.c?x.c.name:"",x.a.why,x.a.date,x.i.list,num(x.p.price.proposed),x.i.o.avg,x.i.o.n||null,x.i.m.avg,x.i.m.c||null,x.i.gap,x.i.basis==="online"?"Online price":"LIST",s?s.units:null,unitChg(x.p)].map(f); }))
+  return [head].concat(summaryRows().map(x=>{ const s=x.p.sales; return [actMeta(x.a.k)[1],x.p.name,x.c?x.c.name:"",x.a.why,x.a.date,x.i.list,num(x.p.price.proposed),x.i.o.avg,x.i.o.n||null,x.i.m.avg,x.i.m.c||null,x.i.gap,x.i.basis==="online"?"Online price":"LIST",s?s.units:null,unitChg(x.p)].map(f).slice(0, head.length); }))
     .concat(rv.length ? [[], ["Competitor review with David"], ["Product","Category","Agreed","Remove","Replace","Competitors to add","Other changes","Saved on"]].concat(rv.map(p=>{ const r=p.review, c=catOf(p.cat), nb=prvEntries(r).filter(x=>!x.k);
       return [p.name, c?c.name:"", lst(r,"agree"), lst(r,"remove"), lst(r,"replace"), r.add||"", [r.other||"", ...nb.map(x=>x.name+": "+x.note)].filter(Boolean).join(". "), r.date||""].map(f); })) : []);
 }
 function reportData(){
   const R = reportRows().sort((a,b)=>b.i.gap-a.i.gap);
   const head=["Product","Category","Action","Compared on",LL("LIST"),"Online average","Online websites","Market average","Market low","Market high","Competitors","Competitor prices","Lowest competitor price","Lowest at","Gap %","Online vs LIST %","Units last 12 months","Units change %"];
+  if(!S.team) head.length -= 2;
   const f = v => v==null?"":(typeof v==="number"? Math.round(v*100)/100 : v);
   return [head].concat(R.map(x=>{ let lw=null; compsOf(x.p).forEach(c=>c.sites.forEach(s=>{ const v=num(s.p); if(v!=null && (!lw||v<lw.v)) lw={v,t:c.name+" at "+s.site}; })); const s=x.p.sales;
-    return [x.p.name,x.c.name,actMeta(actionOf(x.p).k)[1],x.i.basis==="online"?"Online price":"LIST",x.i.listC,x.i.o.avg,x.i.o.n||null,x.i.m.avg,x.i.m.low,x.i.m.high,x.i.m.c,x.i.m.n,lw?lw.v:null,lw?lw.t:"",x.i.gap,x.i.oVsL,s?s.units:null,unitChg(x.p)].map(f); }))
+    return [x.p.name,x.c.name,actMeta(actionOf(x.p).k)[1],x.i.basis==="online"?"Online price":"LIST",x.i.listC,x.i.o.avg,x.i.o.n||null,x.i.m.avg,x.i.m.low,x.i.m.high,x.i.m.c,x.i.m.n,lw?lw.v:null,lw?lw.t:"",x.i.gap,x.i.oVsL,s?s.units:null,unitChg(x.p)].map(f).slice(0, head.length); }))
     .concat([[], ["Website","Product","Online price",LL("LIST"),"Online vs LIST %","Note",(S.settings.listGst==="free"?"Our net price to them":"Our net price to them ex GST"),"Units","Their margin %"]])
     .concat(retailers().flatMap(r=>r.items.map(x=>[r.site,x.p.name,x.v,x.list,x.d,x.note,x.b?x.b.net:null,x.b?x.b.qty:null,x.b?marginOf(x.v,x.b.net):null].map(f))));
 }
@@ -1941,6 +1962,11 @@ function openSites(){
   $("#sitesForm").innerHTML = gbb.map((c,i)=>`<div class="fld"><label for="mc${i}">${esc(c.name)}: brands, separated by commas</label><input id="mc${i}" data-cat="${esc(c.id)}" value="${esc((c.mainComps||[]).join(", "))}">${c.mainCompsNote?`<p class="small" style="margin-top:4px">${esc(c.mainCompsNote)}</p>`:""}</div>`).join("");
   $("#bandIn").value = band(); $("#invU").value = limits().u; $("#invG").value = limits().g; $("#sitesMsg").textContent = S.canWrite?"":"View only";
   $("#sitesSave").disabled = !S.canWrite;
+  if(S.team && !S.canWrite) $("#sitesMsg").textContent = "Only Paula changes brands and settings";
+  document.querySelectorAll("#sitesForm input, #bandIn, #invU, #invG").forEach(x=>{ x.readOnly = !S.canWrite; });
+  $("#sitesCancel").textContent = S.canWrite ? "Cancel" : "Close";
+  $("#visForm").innerHTML = SECTIONS.length ? SECTIONS.map(x=>`<label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" data-sec="${esc(x.id)}" ${x.visible?"checked":""} ${S.team?"":"disabled"} style="margin-top:3px"><span><b>${esc(x.name)}</b>${x.desc?`<span class="small" style="display:block">${esc(x.desc)}</span>`:""}</span></label>`).join("") : `<p class="small">Sections could not be loaded.</p>`;
+  $("#visMsg").textContent = "";
   $("#ovSites").classList.add("open");
 }
 async function saveSites(){
@@ -2002,6 +2028,7 @@ document.addEventListener("click", e=>{
   const t = e.target;
   const hit = sel => t.closest(sel);
   let el;
+  if((el=hit("[data-acct]"))){ closeMenu(); if(el.dataset.acct==="out") CPB.signOut(); else CPB.openSignIn(); return; }
   if(!hit(".gsearch")) hideGres(false);
   if((el=hit("#menuBtn"))){ const open=!$("#bar").classList.contains("menu-open"); $("#bar").classList.toggle("menu-open",open); el.setAttribute("aria-expanded",String(open)); el.textContent = open ? "Close" : "Menu"; return; }
   if((el=hit("[data-qk]"))){ const f=el.closest("[data-qd]"), pid=f.dataset.qd, k=el.dataset.qk;
@@ -2057,7 +2084,7 @@ document.addEventListener("click", e=>{
   if(hit("#copySum")){ copyTsv(summaryData(), $("#sumMsg")); return; }
   if(hit("#dlReport")){ saveCsv("positioning-report-"+today()+".csv", reportData(), $("#repMsg")); return; }
   if(hit("#copyReport")){ copyTsv(reportData(), $("#repMsg")); return; }
-  if(hit("#editSites") && S.canWrite){ openSites(); focusAfter("#sitesForm input"); return; }
+  if(hit("#editSites") && S.team){ openSites(); focusAfter("#visForm input"); return; }
   if(hit("#edClose") || hit("#edCancel") || t.id==="ov"){ closeEditor(); return; }
   if(hit("#edSave")){ saveEditor(); return; }
   if(hit("#sitesCancel") || t.id==="ovSites"){ $("#ovSites").classList.remove("open"); return; }
@@ -2066,6 +2093,15 @@ document.addEventListener("click", e=>{
 
 function setState(v){ S.state = STATES.includes(v) ? v : null; try{ localStorage.setItem("cpb-state", S.state||""); }catch(_){} render(); }
 document.addEventListener("change", e=>{ if(e.target && e.target.id==="stSel") setState(e.target.value); });
+/* Visible to sales switches save straight away. */
+document.addEventListener("change", async e=>{
+  const el = e.target; if(!el || !el.dataset || !el.dataset.sec || !S.team) return;
+  const m = $("#visMsg"); el.disabled = true; if(m) m.textContent = "Saving…";
+  try{ await CPB.saveSections([{id:el.dataset.sec, visible:el.checked}]); const x = SECTIONS.find(y=>y.id===el.dataset.sec); if(x) x.visible = el.checked;
+    if(m) m.textContent = (x ? x.name : "Section")+(el.checked ? " is now visible to sales." : " is now team only."); }
+  catch(err){ el.checked = !el.checked; if(m) m.textContent = (err && err.code==="invalid_argument") ? "Not saved: sign in with a team email." : "Not saved, check the connection and try again."; }
+  finally{ el.disabled = false; }
+});
 document.addEventListener("input", e=>{
   if(e.target.dataset && (e.target.dataset.prn!=null || e.target.dataset.prf)){ const f=e.target.closest("[data-prv]"), p=f&&S.prods.get(f.dataset.prv); if(p){ S.prv=S.prv||{}; const r=prvDraft(p); S.prv[p.id]=r;
       if(e.target.dataset.prf) r[e.target.dataset.prf]=e.target.value; else { const c=compsOf(p)[+e.target.dataset.prn]; if(c) prvComp(r,c.name).note=e.target.value; }
@@ -2141,7 +2177,7 @@ window.addEventListener("hashchange", ()=>{
   claude.use("downloads").then(d=>{ S.dl = d || null; render(); }).catch(()=>{});
   const timer = setTimeout(()=>{ if(!(S.got.c&&S.got.p)){ const st=$("#status"); if(st){ st.className="msg warn"; st.textContent="Saved products can't be reached yet. Check your connection; the page will fill in when they arrive."; } } }, 10000);
   const fail = e => { clearTimeout(timer); const st=$("#status"); if(st){ st.className="msg warn"; st.textContent="Saved products could not be loaded ("+((e&&e.code)||"error")+")."; } };
-  db.doc("reference/main").onSnapshot(snap=>{ const r = (snap.exists && snap.data()) || {}; MGRS = r.managers||[]; GROUPS = r.groups||[]; RETAIL = r.retailers||{}; EXCL = r.excluded||{}; S.got.r=true; render(); }, fail);
+  db.doc("reference/main").onSnapshot(snap=>{ const r = (snap.exists && snap.data()) || {}; MGRS = r.managers||[]; SECTIONS = r.sections||[]; GROUPS = r.groups||[]; RETAIL = r.retailers||{}; EXCL = r.excluded||{}; S.got.r=true; render(); }, fail);
   db.collection("categories").onSnapshot(snap=>{ S.cats = snap.docs.map(d=>Object.assign({id:d.id}, d.data())).sort((a,b)=>(a.order||0)-(b.order||0)); S.got.c=true; if(!snap.metadata.fromCache && S.got.p) clearTimeout(timer); render(); }, fail);
   db.collection("products").onSnapshot(snap=>{ S.prods = new Map(snap.docs.map(d=>[d.id, norm(Object.assign({id:d.id}, d.data()))])); S.got.p=true; if(!snap.metadata.fromCache && S.got.c) clearTimeout(timer); render(); }, fail);
   db.doc("retail/main").onSnapshot(snap=>{ S.retail = snap.exists ? snap.data() : null; render(); }, ()=>{});

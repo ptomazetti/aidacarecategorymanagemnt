@@ -1,9 +1,11 @@
 /* Category Pricing Board: data and sign-in through Supabase.
    The data sits in plain tables (see supabase/schema.sql). This file reads the tables, builds the product and
    category records the board works with, and saves changes back with save_product, save_category and save_settings.
-   Until the site is approved there is no login to view it (Paula, 27 Nov 2026): every table below is read by anyone with
-   the link. Only Paula signs in, to make changes (role admin in members). The login and team-only rules come back once
-   the site is approved. */
+   Two access levels on the same pages (David Owen's step 2, Paula 27 Nov 2026).
+   Public view, no login: products, LIST, specs, and every section switched "Visible to sales" (sections table).
+   Team view, signed in with an email in members: everything, including cost, margin, sales and our net prices to
+   retailers, which are always team only. Signed out, team-only tables and switched-off sections are never requested.
+   Only Paula (role admin) changes prices; the team switches sections. */
 (function(){
   "use strict";
   const CFG = window.CPB_CONFIG || {};
@@ -39,6 +41,7 @@
   const TEAM = ["product_costs","product_sales","product_internal","online_prices","product_reviews","product_review_competitors",
     "category_reviews","retailer_sales_info","retailer_codes","retailer_net_prices","price_changes"];
   const KEYS = {
+    sections:["sort_order"],
     managers:["manager_id"], manager_categories_to_add:["manager_id","sort_order"], category_groups:["group_id"], categories:["category_id"],
     category_needs:["category_id","sort_order"], category_main_competitors:["category_id","sort_order"], category_gbb_competitors:["category_id","sort_order"],
     category_range_extras:["category_id","sort_order"], products:["product_id"], product_specs:["product_id","line_no"],
@@ -74,13 +77,18 @@
   const site = r => { const o = {site:s(r.website), p:n(r.price), url:s(r.url), date:day(r.checked_on)}; if(r.note!=null) o.note = r.note; if(r.both_types) o.both = true; return o; };
   const blankSite = () => ({site:"", p:null, url:"", date:""});
 
+  /* Tables behind a "Visible to sales" switch, by section. Anything in TEAM without a section is always team only. */
+  const SECTION_OF = {product_selling_points:"why_buy", why_people_buy:"why_buy", why_people_buy_comparison:"why_buy", open_checks:"why_buy",
+    why_people_buy_progress:"why_buy", product_competitors:"competitor_prices", competitor_prices:"competitor_prices", product_flyers:"flyers",
+    online_prices:"online_prices", product_internal:"decisions", price_changes:"price_changes", product_reviews:"review",
+    product_review_competitors:"review", category_reviews:"review"};
   async function loadAll(){
-    const pubRows = await Promise.all(PUBLIC.map(fetchAll));
-    const T = {}; PUBLIC.forEach((t, i) => { T[t] = pubRows[i]; });
-    /* Signed out: a table the database keeps for the team (refused, not failed) comes back empty. Any other failure stops
-       the load, so missing cost or sales data is never shown as if there were none. */
-    const teamRows = await Promise.all(TEAM.map(t => team ? fetchAll(t) : fetchAll(t).catch(e => { if(e && e.denied) return []; throw e; })));
-    TEAM.forEach((t, i) => { T[t] = teamRows[i]; });
+    const secRows = await fetchAll("sections");
+    const on = new Set(secRows.filter(x => x.visible_to_sales).map(x => x.section_id));
+    const wanted = t => team || (SECTION_OF[t] ? on.has(SECTION_OF[t]) : PUBLIC.includes(t));
+    const all = PUBLIC.concat(TEAM);
+    const rows = await Promise.all(all.map(t => wanted(t) ? fetchAll(t) : Promise.resolve([])));
+    const T = {sections: secRows}; all.forEach((t, i) => { T[t] = rows[i]; });
     return build(T);
   }
 
@@ -101,7 +109,8 @@
       managers: T.managers.slice().sort((a,b) => a.sort_order - b.sort_order).map(m => ({id:m.manager_id, name:m.name, todo:(G.manager_categories_to_add.get(m.manager_id)||[]).map(x => x.category_name)})),
       groups: T.category_groups.slice().sort((a,b) => a.sort_order - b.sort_order).map(g => ({id:g.group_id, name:g.name,
         cats: T.categories.filter(c => c.group_id===g.group_id).sort((a,b) => n(a.sort_order) - n(b.sort_order)).map(c => c.category_id)})),
-      retailers: {}, excluded: {}
+      retailers: {}, excluded: {},
+      sections: T.sections.slice().sort((a,b) => a.sort_order - b.sort_order).map(x => ({id:x.section_id, name:x.name, desc:s(x.description), visible:!!x.visible_to_sales, updated:s(x.updated_at), by:s(x.updated_by)}))
     };
     const STATE_ORDER = ["NSW","VIC","QLD","SA","WA","TAS","ACT","NT"];
     T.retailers.slice().sort((a,b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999)).forEach(r => {
@@ -272,6 +281,14 @@
     later();
   }
 
+  /* The team switches sections on or off for sales (save_sections checks the login). */
+  async function saveSections(items){
+    if(!team) throw mkErr("invalid_argument", "Sign in with a team email to change what sales see.");
+    const r = await sb.rpc("save_sections", {s: {items}});
+    if(r.error){ const denied = r.error.code === "42501" || /permission|only the team/i.test(r.error.message || ""); throw mkErr(denied ? "invalid_argument" : "unavailable", r.error.message); }
+    later();
+  }
+
   const DB = {
     collection: coll => ({ onSnapshot: (cb, err) => listen({kind: "coll", coll, cb, err}) }),
     doc: path => ({
@@ -312,7 +329,7 @@
 #cpbAuth button{font:inherit;border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid #C9CED5;background:#fff;color:#1B2430}
 #cpbAuth button.pri{background:#007C92;border-color:#007C92;color:#fff;font-weight:600}
 #cpbAuth button.lnk{border:0;background:none;color:#006b7e;text-decoration:underline;padding:4px 0}
-#cpbAuth .msg{font-size:13px;min-height:1.2em;color:#B3261E}
+#cpbAuth .msg{font-size:13px;min-height:1.2em;color:#B3261E;border:0;padding:0;border-radius:0}
 #cpbAuth .msg.ok{color:#1E6B3A}`;
   function el(html){ const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; }
   function openAuth(mode){
@@ -385,6 +402,7 @@
     openSignIn: () => openAuth("signin"),
     wpbSave,
     wpbSaveReason,
+    saveSections,
     signOut: async () => { try{ if(sb) await sb.auth.signOut(); }catch(_){} location.reload(); }
   };
 })();
