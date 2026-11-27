@@ -746,6 +746,67 @@ h3{text-transform:none;letter-spacing:0;font-size:13px}
   .ph .sub{margin:0;font-size:13px}
   .ph .row .btn.primary{min-height:44px;padding:0 14px}
 }
+/* round 4: Summary list pills, Report rows on the phone, product jump menu */
+.mrow .gl{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.mrow .gl .glb{font-size:12px;color:var(--muted)}
+.dhead{flex-wrap:wrap}
+.jump{order:10;flex:1 1 100%;display:flex;flex-wrap:wrap;gap:6px;padding-top:4px}
+.jbtn{min-height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 13px var(--body);cursor:pointer}
+.jbtn:hover{border-color:var(--teal)}
+#sec-prices,#sec-comps,.dsec{scroll-margin-top:130px}
+.dsec h2:focus,.dsec h3:focus,#sec-comps h3:focus,#sec-prices h3:focus{outline:none}
+@media (max-width:1023px){
+  details.rsec > summary{flex-wrap:wrap;gap:4px 12px}
+  details.rsec > summary h2{flex:1 1 auto;font-size:17px}
+  details.rsec > summary .small{flex:1 1 100%;order:3}
+  .jbtn{min-height:44px}
+  #sec-prices,#sec-comps,.dsec{scroll-margin-top:170px}
+}
+/* contrast: teal text on tinted backgrounds uses the darker teal */
+.cbox .ch .cmpb,.cbox .ch .linkbtn{color:var(--teal-ink)}
+.szuse,.szu .gt.below,.szu .num{color:var(--teal-ink)}
+/* Report in the QBR style */
+.qtag{display:inline-block;margin-top:6px;font:700 12px/1.2 var(--display);letter-spacing:.06em;text-transform:uppercase;color:var(--teal)}
+.qcards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.qcard{position:relative;display:flex;flex-direction:column;gap:2px;padding:14px 16px 14px 20px;background:var(--sunk);border-radius:var(--r);overflow:hidden}
+.qcard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--qc,var(--coal))}
+.qcard.below{--qc:var(--pos-below)} .qcard.inline{--qc:var(--pos-inline)} .qcard.above{--qc:var(--pos-above)} .qcard.all{--qc:var(--green)}
+.qcard .qk{font-weight:700;color:var(--graphite);font-size:13px}
+.qcard .qv{font:800 32px/1.1 var(--display);color:var(--ink)}
+.qcard .qs{font-size:12px;color:var(--muted)}
+.qtwo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.qpanel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px;min-width:0}
+.qpanel h3{font:700 16px/1.2 var(--display);color:var(--ink)}
+.qtop{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.qtop li{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) auto;gap:10px;align-items:center}
+.qtop .qn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.qtrack{display:block;height:10px;border-radius:999px;background:var(--line2);overflow:hidden}
+.qbar{display:block;height:100%;border-radius:999px} .qbar.above{background:var(--pos-above)} .qbar.below{background:var(--pos-below)}
+table.qt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.qt thead th{font-size:12px;font-weight:700;color:var(--graphite);text-align:left;padding:8px 10px;border-top:1px solid var(--coal);border-bottom:1px solid var(--line)}
+.qt td,.qt tbody th{padding:8px 10px;border-bottom:1px solid var(--line2);text-align:left;font-weight:400}
+.qt tbody th a{font-weight:700}
+.qt .num{text-align:right}
+.qchip{display:inline-block;padding:2px 10px;border-radius:999px;background:var(--sunk2);color:var(--ink);font-size:12px;font-weight:700}
+@media (max-width:1023px){
+  .qcards{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .qtwo{grid-template-columns:1fr}
+  .qcard .qv{font-size:26px}
+}
+@media (max-width:700px){
+  .qt thead{display:none}
+  .qt,.qt tbody,.qt tr{display:block}
+  .qt tr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 8px;padding:10px 0;border-bottom:1px solid var(--line2)}
+  .qt tbody th{grid-column:1/3;border:0;padding:0}
+  .qt td{border:0;padding:0;text-align:left}
+  .qt td:nth-child(2){grid-column:3/5;text-align:right}
+  .qt td.num{text-align:left;font-size:13px}
+  .qt td.num::before{display:block;font-size:11px;font-weight:600;color:var(--muted)}
+  .qt td:nth-child(3)::before{content:"Compared"} .qt td:nth-child(4)::before{content:"Below"} .qt td:nth-child(5)::before{content:"In line"} .qt td:nth-child(6)::before{content:"Above"}
+  .qt td:nth-child(7){grid-column:1/-1} .qt td:nth-child(7)::before{content:"Average vs market"}
+  .qt td:nth-child(3){grid-column:auto}
+}
+.cbox .cr.na a{color:var(--teal-ink)}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -1004,6 +1065,8 @@ function info(p0){
 const basisWord = i => i.sz ? (i.sz==="from" ? "Our cheapest size LIST" : "Our "+szName(i.sz)+" LIST") : "Our LIST";
 const FEW = 3;
 const fewTxt = i => i.m.n && i.m.n<FEW ? `only ${i.m.n} competitor price${i.m.n>1?"s":""}` : "";
+/* Price position as a pill, with the basis underneath (cards and the Summary list on phones). */
+function posLine(i){ if(i.gap==null) return ""; const f=fewTxt(i); return `${gapPill(i.gap)}<span class="glb">${esc(basisWord(i))} vs market average${f?", "+esc(f):""}</span>`; }
 function gapLine(i){ if(i.gap==null) return ""; const f=fewTxt(i); return basisWord(i)+" "+(i.st==="inline" ? `<span class="gt inline">${posIco("inline")}in line with market</span>` : gapWord(i.gap)+" market")+(f?`<span class="few">, ${f}</span>`:""); }
 function vsList(v){ return v==null ? "" : Math.abs(v)<0.5 ? "Same as LIST" : Math.abs(v).toFixed(1)+"% "+(v<0?"below":"above")+" LIST"; }
 function matchFilter(p, f){ const i=info(p); return f==="all" || (f==="nolist" && i.list==null) || (f==="nocomp" && i.m.n===0) || (i.st===f); }
@@ -1354,7 +1417,7 @@ function priceCells(p, i, leaving){
 function card(p, cid, leaving, open){
   const i = info(p), sel = route().pid===p.id, k = actionOf(p).k;
   const f = i.gap!=null ? fewTxt(i) : "";
-  const gl = i.gap!=null ? `${gapPill(i.gap)}<span class="glb">${esc(basisWord(i))} vs market average${f?", "+esc(f):""}</span>` : (leaving ? "" : (!i.m.n ? "No competitor prices" : "No price to compare"));
+  const gl = i.gap!=null ? posLine(i) : (leaving ? "" : (!i.m.n ? "No competitor prices" : "No price to compare"));
   const top = leaving
     ? `<span class="cinfo"><span class="kind">${esc(p.kind||"")}</span><span class="nm">${esc(p.name)}</span><span class="sp">${esc(p.status||"")}</span></span>`
     : `<span class="cinfo"><span class="nm">${esc(p.name)}</span><span class="sp">${esc(p.spec.slice(0,2).join(" · "))}</span>${p.flag||changeFlag(p)?`<span class="sp">${p.flag?`<span class="pill flag">${esc(p.flag)}</span> `:""}${changeFlag(p)}</span>`:""}</span>`;
@@ -1930,6 +1993,13 @@ function sizeBox(p, i){
     <div class="sumwrap"><table class="szt"><thead><tr><th scope="col">${typ?"Type":"Size"}</th>${hasCode?`<th scope="col">Code</th>`:""}<th scope="col" class="num">${LL("Our LIST")}</th><th scope="col">Competitors ${typ?"of this type":"at this size"}</th><th scope="col" class="num">Vs market</th></tr></thead><tbody>${body}</tbody></table></div>
     ${sk.cfg.note?`<p class="small" style="margin:0">${esc(sk.cfg.note)}</p>`:""}</div>`;
 }
+/* Product detail: jump menu to each section (design refresh, 27 Nov 2026). */
+const secWrap = (id, html) => html && html.trim() ? `<div id="${id}" class="dsec">${html}</div>` : "";
+function jumpNav(p){
+  const lv = isLeave(p), has = f => { try{ const h=f(); return !!(h && h.trim()); }catch(_){ return false; } };
+  const items = [["sec-prices","Prices",true],["sec-comps","Competitors",vis("competitor_prices")],["sec-why","Why people buy",!lv && has(()=>wpbBox(p))],["sec-review","Review",!lv && has(()=>crBox(p))],["sec-history","History",!lv && has(()=>histBox(p))]].filter(x=>x[2]);
+  return items.length>1 ? `<nav class="jump" aria-label="Sections of this product">${items.map(([id,l])=>`<button type="button" class="jbtn" data-jump="${id}">${l}</button>`).join("")}</nav>` : "";
+}
 function detail(p){
   const i = info(p), cost=num(p.price.cost), gm=gmOf(i.list,cost), s=p.sales;
   const places = isLeave(p) ? `<span class="chip">${esc(p.status||"Discontinued")}</span>${p.instead?`<span class="chip">${esc(p.instead)}</span>`:""}`
@@ -1969,12 +2039,12 @@ function detail(p){
   const dates = [...new Set(p.comps.flatMap(c=>c.sites.map(x=>x.date)).concat(p.online.sites.map(x=>x.date)).filter(Boolean))].sort().map(fmtDate).join(", ");
   const exS = i.list!=null && gstF()>1 ? money(i.list)+" ex GST. " : "";
   const listS = i.propC!=null ? LL("Proposed")+" "+money0(i.propC)+(i.m.avg!=null?", "+Math.abs(gapOf(i.propC,i.m.avg)).toFixed(1)+"% "+(gapOf(i.propC,i.m.avg)<0?"below":"above")+" market":"") : "";
-  return `<div class="dhead"><h2 id="dName" tabindex="-1">${esc(p.name)}</h2><span class="small" id="dMsg" aria-live="polite"></span><button type="button" class="btn" data-export="${esc(p.id)}">${S.dl?"Export to Excel":"Copy for Excel"}</button>${S.canWrite?`<button type="button" class="btn primary" data-edit="${esc(p.id)}">Edit prices</button>`:""}<button type="button" class="xbtn" id="dClose" aria-label="Close details"><span class="xi" aria-hidden="true">×</span><svg class="bi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button></div>
+  return `<div class="dhead"><h2 id="dName" tabindex="-1">${esc(p.name)}</h2><span class="small" id="dMsg" aria-live="polite"></span><button type="button" class="btn" data-export="${esc(p.id)}">${S.dl?"Export to Excel":"Copy for Excel"}</button>${S.canWrite?`<button type="button" class="btn primary" data-edit="${esc(p.id)}">Edit prices</button>`:""}${jumpNav(p)}<button type="button" class="xbtn" id="dClose" aria-label="Close details"><span class="xi" aria-hidden="true">×</span><svg class="bi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button></div>
   <div class="dbody">${cmpBox(p)}<div class="dcol">
     <div class="dtop">${thumb(p)}<div style="display:flex;flex-direction:column;gap:8px;min-width:0">${(places||p.placements.length)?`<div class="row">${gbbChips(p)}${places}</div>`:""}${p.spec.length?`<span class="small">${esc(p.spec.join(" · "))}</span>`:""}${codesOf(p).length?`<details class="codes"><summary>Product codes (${codesOf(p).length})</summary><span class="small">${esc(codesOf(p).join(", "))}</span></details>`:""}${(p.flyers||[]).length?`<span class="row" style="gap:8px">${flyLinks(p)}</span>`:""}${reasonsOf(p)?`<div class="why"><span class="lb">Selling points${teamTag("why_buy")}</span><ol>${reasonsOf(p).map(r=>`<li>${esc(r)}</li>`).join("")}</ol></div>`:""}</div></div>
     ${cmpPick(p)}
     ${p.compFlag?`<div class="actbox" style="--c:var(--lime)"><div class="row"><span class="act a-watch">Check comparison</span></div><p>${esc(p.compFlag)}</p></div>`:""}
-    <div class="stats">
+    <div class="stats" id="sec-prices">
       <div><span class="k">${LL(i.sz ? basisWord(i) : "Our LIST")}</span><span class="v">${i.listC!=null?money0(i.listC):"Not set"}</span><span class="s">${p.listSrc?esc(p.listSrc)+" ":""}${p.price.listNote?esc(p.price.listNote)+" ":""}${exS}${listS || (i.gapL!=null && i.basis==="online" ? "LIST "+(gapClass(i.gapL)==="inline"?"in line with market":Math.abs(i.gapL).toFixed(1)+"% "+(i.gapL<0?"below":"above")+" market") : "")}</span></div>
       ${isLeave(p)||!vis("online_prices")||!i.o.n?"":`<div><span class="k">Online average${teamTag("online_prices")}</span><span class="v">${i.o.n?money0(i.o.avg):"n/a"}</span><span class="s">${i.o.n?(i.o.n>1?"Average of "+i.o.n+" websites, "+money(i.o.low)+" to "+money(i.o.high):"1 website"):(p.online.sites.some(x=>num(x.p)!=null) && i.sz ? "No "+esc((SZ[i.sz]||i.sz).toLowerCase())+" online price. Our online prices are for other "+((p.sizes||{}).kind==="type"?"types":"sizes")+"." : "No online price yet")}</span></div>`}
       <div><span class="k">Market average</span><span class="v">${money0(i.m.avg)}</span><span class="s">${i.m.n?"Average of "+i.m.c+" competitor"+(i.m.c>1?"s":"")+(i.sz?", "+szName(i.sz, i.szLow)+" only":"")+", each counted once. "+i.m.n+" price"+(i.m.n>1?"s":"")+", "+money(i.m.low)+" to "+money(i.m.high):"No competitor prices"}</span></div>
@@ -1989,10 +2059,10 @@ function detail(p){
     ${isLeave(p) ? "" : changeBox(p)}
     ${ours}
     ${sizeBox(p, i)}
-    ${vis("competitor_prices")?`<div style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between"><h3>Competitor prices${teamTag("competitor_prices")}</h3><span class="small">${dates?"Checked "+esc(dates):""}</span></div>${isLeave(p)?"":deliveredLine(p)}${lanes}${comps||`<p class="small">No competitors listed.</p>`}</div>`:""}
-    ${isLeave(p) ? "" : wpbBox(p)}
-    ${isLeave(p) ? "" : crBox(p)}
-    ${isLeave(p) ? "" : histBox(p)}
+    ${vis("competitor_prices")?`<div id="sec-comps" style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between"><h3>Competitor prices${teamTag("competitor_prices")}</h3><span class="small">${dates?"Checked "+esc(dates):""}</span></div>${isLeave(p)?"":deliveredLine(p)}${lanes}${comps||`<p class="small">No competitors listed.</p>`}</div>`:""}
+    ${secWrap("sec-why", isLeave(p) ? "" : wpbBox(p))}
+    ${secWrap("sec-review", isLeave(p) ? "" : crBox(p))}
+    ${secWrap("sec-history", isLeave(p) ? "" : histBox(p))}
   </div></div>`;
 }
 
@@ -2070,7 +2140,7 @@ function renderTable(){
   const sortSel = `<label class="msort"><span>Sort by</span><select id="tsort">${sortOpts.map(([k,t])=>`<option value="${k}" ${S.sortKey===k?"selected":""}>${t}</option>`).join("")}</select></label>`;
   const mrow = x => { const i=info(x.p), lv=isLeave(x.p);
     const ex = x.gma!=null?"Actual GM "+x.gma.toFixed(1)+"%":"";
-    return `<a class="mrow" href="${pLink("table",x.p)}" data-pid="${esc(x.p.id)}"><span class="ctop"><span class="nm">${esc(x.name)}</span>${x.action==="none"?"":`<span class="cact">${actPill(x.action,x.p)}</span>`}</span>${nums(priceCells(x.p,i,lv))}${i.gap!=null?`<span class="gl">${gapLine(i)}</span>`:""}${ex?`<span class="ex">${ex}</span>`:""}</a>`; };
+    return `<a class="mrow" href="${pLink("table",x.p)}" data-pid="${esc(x.p.id)}"><span class="ctop"><span class="nm">${esc(x.name)}</span>${x.action==="none"?"":`<span class="cact">${actPill(x.action,x.p)}</span>`}</span>${nums(priceCells(x.p,i,lv))}${i.gap!=null?`<span class="gl">${posLine(i)}</span>`:""}${ex?`<span class="ex">${ex}</span>`:""}</a>`; };
   let mbody = "";
   if(S.sortKey==="cat") S.cats.forEach(c=>{ const g=r.filter(x=>x.catId===c.id); if(g.length) mbody += `<h2 class="mgrp">${esc(c.name)}</h2>${g.map(mrow).join("")}`; });
   else mbody = r.map(mrow).join("");
@@ -2137,16 +2207,8 @@ async function exportGbb(){
   if(!S.dl || !cats.length) return;
   say("Preparing…");
   try{
-    const X = await loadXLSX(), wb = X.utils.book_new(), used = new Set();
-    cats.forEach(c=>{
-      const ws = X.utils.aoa_to_sheet(gbbRows(c));
-      ws["!cols"] = [{wch:28}].concat(Array(6).fill({wch:42}));
-      let name = String(c.name||c.id).replace(/[\[\]:*?\/\\]/g," ").slice(0,31), k=2;
-      while(used.has(name)) name = name.slice(0,28)+" "+(k++);
-      used.add(name);
-      X.utils.book_append_sheet(wb, ws, name);
-    });
-    await S.dl.save({filename: "GBB - "+today()+".xlsx", data: X.write(wb, {bookType:"xlsx", type:"array"})});
+    const buf = await brandBook(cats.map(c=>({name:c.name||c.id, title:"Good, Better, Best: "+(c.name||c.id), aoa:gbbRows(c)})));
+    await S.dl.save({filename: "GBB - "+today()+".xlsx", data: buf});
     say("File saved.");
   }catch(e){ if(e && e.code==="declined") say("Export cancelled."); else copyTsv(gbbCopyRows(), $("#gbbMsg"), true); }
 }
@@ -2155,22 +2217,7 @@ async function exportMgr(id){
   if(!m || !S.dl || !cats.length) return;
   say("Preparing…");
   try{
-    const X = await loadXLSX(), wb = X.utils.book_new(), used = new Set();
-    cats.forEach(c=>{
-      const ws = X.utils.aoa_to_sheet(catSheetRows(c)), rg = X.utils.decode_range(ws["!ref"]);
-      for(let r=1; r<=rg.e.r; r++){
-        [2,3,6,9].forEach(k=>{ const cl=ws[X.utils.encode_cell({r,c:k})]; if(cl && typeof cl.v==="number") cl.z='"$"#,##0.00'; });
-        [4,7].forEach(k=>{ const cl=ws[X.utils.encode_cell({r,c:k})]; if(cl && typeof cl.v==="number") cl.z="0.0%"; });
-        const lk=ws[X.utils.encode_cell({r,c:12})]; if(lk && lk.v) lk.l={Target:lk.v};
-      }
-      ws["!cols"] = [26,26,10,11,12,30,13,13,22,10,44,12,44].map(w=>({wch:w}));
-      ws["!autofilter"] = {ref: ws["!ref"]};
-      let name = String(c.name||c.id).replace(/[\[\]:*?\/\\]/g," ").slice(0,31), k=2;
-      while(used.has(name)) name = name.slice(0,28)+" "+(k++);
-      used.add(name);
-      X.utils.book_append_sheet(wb, ws, name);
-    });
-    const buf = X.write(wb, {bookType:"xlsx", type:"array"});
+    const buf = await brandBook(cats.map(c=>({name:c.name||c.id, title:c.name||c.id, aoa:catSheetRows(c)})));
     await S.dl.save({filename: m.name+" - pricing - "+today()+".xlsx", data: buf});
     say("File saved.");
   }catch(e){ if(e && e.code==="declined") say("Export cancelled."); else copyTsv(mgrCopyRows(id), $("#mgrMsg"), true); }
@@ -2220,9 +2267,72 @@ function productData(p){
   return R;
 }
 function toCsv(arr){ return "﻿" + arr.map(r=>r.map(v=>{ const s=String(v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }).join(",")).join("\r\n"); }
+/* ---------- branded Excel exports (Paula, 27 Nov 2026) ----------
+   Every export is an .xlsx in the Aidacare format: Montserrat title, teal tag line, Aptos body, a Coal rule above the
+   table header, $ and % number formats, price position coloured as on the board, frozen header, filter and a
+   confidential footer. The data is exactly what the CSV export carried. */
+const EXCELJS_SRC = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js";
+let excelLoading = null;
+function loadExcel(){
+  if(window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  if(!excelLoading) excelLoading = new Promise((res, rej)=>{ const s=document.createElement("script"); s.src=EXCELJS_SRC; s.onload=()=>window.ExcelJS ? res(window.ExcelJS) : rej(new Error("load")); s.onerror=()=>{ excelLoading=null; rej(new Error("load")); }; document.head.appendChild(s); });
+  return excelLoading;
+}
+const XC = {coal:"FF394A58", graphite:"FF4C4C4E", teal:"FF007C92", tealInk:"FF005A6B", line:"FFD3D8DC", line2:"FFEBEEF0", sunk:"FFF4F5F6", tealTint:"FFE3F1F4", sunk2:"FFEFF1F2", lime:"FFBED600", white:"FFFFFFFF"};
+const xMoney = h => /(LIST|price|average|avg|cost|\bnet\b|sell|value|\$)/i.test(h||"") && !/%|prices found|websites|units|count|number/i.test(h||"");
+const xPct = h => /%/.test(h||"");
+const xPos = h => /vs market/i.test(h||"");
+function xSheet(wb, name, title, aoa){
+  const ws = wb.addWorksheet(name, {views:[{showGridLines:false}], pageSetup:{orientation:"landscape", fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9}});
+  ws.headerFooter.oddFooter = "&L&\"Aptos\"&8© "+new Date().getFullYear()+" Aidacare Pty Ltd CONFIDENTIAL&R&\"Aptos\"&8Page &P of &N";
+  const t = ws.addRow([title]); t.font = {name:"Montserrat", size:18, bold:true, color:{argb:XC.coal}}; t.height = 28;
+  const tg = ws.addRow([("Exported "+fmtDate(today())+" · "+LL("LIST")+" vs market"+(gstF()>1?"":", GST-free")).toUpperCase()]); tg.font = {name:"Montserrat", size:9, bold:true, color:{argb:XC.teal}};
+  ws.addRow([]);
+  const isNum = v => typeof v==="number" && isFinite(v);
+  let head = null, firstHead = 0, width = 1;
+  aoa.forEach((r0, k)=>{
+    const r = (r0||[]).map(v=>v==="" ? null : v), cells = r.filter(v=>v!=null);
+    width = Math.max(width, r.length);
+    const next = aoa[k+1] || [];
+    const looksHead = cells.length>=3 && cells.every(v=>typeof v==="string") && next.some(isNum);
+    const row = ws.addRow(r.map(v=>v==null?null:v));
+    row.font = {name:"Aptos", size:11, color:{argb:XC.coal}};
+    if(!cells.length){ head = null; return; }
+    if(looksHead){
+      head = r; if(!firstHead) firstHead = row.number;
+      row.eachCell({includeEmpty:true}, (c, ci)=>{ if(ci>r.length) return; c.font = {name:"Aptos", size:10, bold:true, color:{argb:XC.graphite}}; c.border = {top:{style:"medium", color:{argb:XC.coal}}, bottom:{style:"thin", color:{argb:XC.line}}}; c.alignment = {vertical:"bottom", wrapText:true}; });
+      return;
+    }
+    if(!head && cells.length===1 && typeof r[0]==="string" && !aoa[k-1]?.length){ row.font = {name:"Montserrat", size:12, bold:true, color:{argb:XC.coal}}; return; }
+    r.forEach((v, ci)=>{
+      const c = row.getCell(ci+1), lab = head ? head[ci] : (ci>0 ? r[0] : "");
+      if(!head && ci===0 && r.length>1 && typeof v==="string"){ c.font = {name:"Aptos", size:11, bold:true, color:{argb:XC.graphite}}; return; }
+      if(head) c.border = {bottom:{style:"thin", color:{argb:XC.line2}}};
+      if(!isNum(v)) { c.alignment = {vertical:"top", wrapText: typeof v==="string" && v.length>40}; return; }
+      if(xPct(lab)) c.numFmt = '+0.0"%";-0.0"%";0.0"%"';
+      else if(xMoney(lab)) c.numFmt = '"$"#,##0.00';
+      if(xPos(lab) && xPct(lab)){ const b = band(), st = v>b ? "above" : v<-b ? "below" : "inline";
+        c.fill = {type:"pattern", pattern:"solid", fgColor:{argb: st==="below"?XC.tealTint : st==="above"?XC.sunk2 : XC.lime}};
+        c.font = {name:"Aptos", size:11, bold:true, color:{argb: st==="below"?XC.tealInk : XC.coal}}; }
+    });
+  });
+  for(let ci=1; ci<=width; ci++){ let w=10; ws.getColumn(ci).eachCell({includeEmpty:false}, (c, rn)=>{ if(rn<=2) return; const v=c.value==null?"":String(c.value); w=Math.max(w, Math.min(48, v.length+2)); }); ws.getColumn(ci).width = w; }
+  ws.getColumn(1).width = Math.max(ws.getColumn(1).width, 26);
+  if(firstHead){ ws.views = [{state:"frozen", ySplit:firstHead, showGridLines:false}]; }
+  return ws;
+}
+async function brandBook(sheets){
+  const E = await loadExcel(), wb = new E.Workbook(); wb.creator = "Category Pricing Board"; wb.created = new Date();
+  const used = new Set();
+  sheets.forEach(sh=>{ let name = String(sh.name||"Sheet").replace(/[\[\]:*?\/\\]/g," ").slice(0,31), k=2; while(used.has(name)) name = name.slice(0,28)+" "+(k++); used.add(name); xSheet(wb, name, sh.title||sh.name, sh.aoa); });
+  return wb.xlsx.writeBuffer();
+}
+const EXPORT_TITLES = {"products-vs-competitors":"Products vs competitors", "price-table":"Price table", "pricing-decisions":"Pricing decisions", "positioning-report":"Pricing position"};
+function exportTitle(name){ const stem = name.replace(/-\d{4}-\d{2}-\d{2}\.(csv|xlsx)$/,""); if(EXPORT_TITLES[stem]) return EXPORT_TITLES[stem]; const p=S.prods.get(stem); if(p) return p.name; const c=catOf(stem); if(c) return c.name; return stem; }
 async function saveCsv(name, arr, msgEl){
   if(!S.dl) return;
-  try{ await S.dl.save({filename:name, data:toCsv(arr)}); if(msgEl) msgEl.textContent="File saved."; }
+  const title = exportTitle(name), file = title+" - "+today()+".xlsx";
+  try{ if(msgEl) msgEl.textContent="Preparing…"; const buf = await brandBook([{name:title, title, aoa:arr}]); await S.dl.save({filename:file, data:buf}); if(msgEl) msgEl.textContent="File saved."; }
   catch(e){ if(e && e.code==="declined"){ if(msgEl) msgEl.textContent="Export cancelled."; } else copyTsv(arr.map(r=>r.map(v=>v==null?"":String(v).replace(/[\t\n\r]/g," "))), msgEl, true); }
 }
 function today(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -2280,8 +2390,21 @@ function renderReport(){
 
   const chart = posChart(R, "report", true);
 
-  return `<div class="ph"><div>${backBtn()}<h1>Pricing position${d?", "+MON[+d[2]-1]+" "+d[1]:""}</h1></div><div class="row">${S.team?`<a class="btn" href="#coverage">Coverage</a>`:""}${S.dl?`<button type="button" class="btn primary" id="dlReport">Export to Excel</button>`:`<button type="button" class="btn" id="copyReport">Copy for Excel</button>`}</div></div>
+  /* QBR layout (Paula, 27 Nov 2026): KPI cards with an accent bar, top 5 bars on a grey track, and an all categories table. */
+  const tag = (d ? MON[+d[2]-1]+" "+d[1]+" · " : "") + LL("LIST")+" vs market";
+  const card = (cls, v, k, sub) => `<div class="qcard ${cls}"><span class="qk">${k}</span><span class="qv">${v}</span><span class="qs">${sub}</span></div>`;
+  const cards = `<div class="qcards">${card("all", R.length, "Products compared", `of ${all.length} current products have competitor prices`)}${card("below", below.length, "Below market", `more than ${b}% under the market average`)}${card("inline", inl.length, "In line", `within ${b}% either way`)}${card("above", above.length, "Above market", `more than ${b}% over the market average`)}</div>`;
+  const top5 = (list, cls, title) => { const L = list.slice().sort((a,c)=>Math.abs(c.i.gap)-Math.abs(a.i.gap)).slice(0,5); if(!L.length) return "";
+    const mx = Math.max(...L.map(x=>Math.abs(x.i.gap)));
+    return `<section class="qpanel" aria-label="${esc(title)}"><h3>${esc(title)}</h3><ol class="qtop">${L.map(x=>`<li><span class="qn">${link(x.p)}<span class="small"> (${esc(catOf(x.p.cat)?catOf(x.p.cat).name:"")})</span></span><span class="qtrack" aria-hidden="true"><span class="qbar ${cls}" style="width:${Math.max(4,Math.round(Math.abs(x.i.gap)/mx*100))}%"></span></span><span class="qp">${gapPill(x.i.gap,true)}</span></li>`).join("")}</ol></section>`; };
+  const catRows = S.cats.filter(c=>c.type!=="list").map(c=>{ const g=R.filter(x=>x.p.cat===c.id); if(!g.length) return null;
+    const avg = g.reduce((t,x)=>t+x.i.gap,0)/g.length; return {c, n:g.length, be:g.filter(x=>x.i.st==="below").length, il:g.filter(x=>x.i.st==="inline").length, ab:g.filter(x=>x.i.st==="above").length, avg}; }).filter(Boolean).sort((a,c)=>c.n-a.n || a.c.name.localeCompare(c.c.name));
+  const catTbl = catRows.length ? `<section class="qpanel" aria-labelledby="acH"><h3 id="acH">All categories</h3><div class="sumwrap"><table class="qt"><thead><tr><th scope="col">Category</th><th scope="col">Owner</th><th scope="col" class="num">Products compared</th><th scope="col" class="num">Below</th><th scope="col" class="num">In line</th><th scope="col" class="num">Above</th><th scope="col" class="num">Average vs market</th></tr></thead><tbody>${catRows.map(r=>{ const m=mgrOf(catMgr(r.c)); return `<tr><th scope="row"><a href="#cat/${esc(r.c.id)}">${esc(r.c.name)}</a></th><td><span class="qchip">${esc(m?m.name.split(" ")[0]:"")}</span></td><td class="num">${r.n}</td><td class="num">${r.be}</td><td class="num">${r.il}</td><td class="num">${r.ab}</td><td class="num">${gapPill(r.avg,true)}</td></tr>`; }).join("")}</tbody></table></div></section>` : "";
+  const qbr = `${cards}<div class="qtwo">${top5(above,"above","Top 5 above market")}${top5(below,"below","Top 5 below market")}</div>${catTbl}`;
+
+  return `<div class="ph"><div>${backBtn()}<h1>Pricing position</h1><span class="qtag">${esc(tag)}</span></div><div class="row">${S.team?`<a class="btn" href="#coverage">Coverage</a>`:""}${S.dl?`<button type="button" class="btn primary" id="dlReport">Export to Excel</button>`:`<button type="button" class="btn" id="copyReport">Copy for Excel</button>`}</div></div>
   <p class="small" id="repMsg" aria-live="polite"></p>
+  ${qbr}
   ${decisions}
   <details class="rsec"><summary><h2 id="ch">Position by category</h2><span class="small">Every product against the market</span><span class="chev" aria-hidden="true">›</span></summary>${chart}</details>
   ${RT.length?`<details class="rsec"><summary><h2 id="rtH">Retailer prices</h2><span class="small">${retLine}</span><span class="chev" aria-hidden="true">›</span></summary><p class="small">Each website's price against our ${esc(LL("LIST"))}, furthest below first. Only the websites on the board. Open a website to see its products.</p>
@@ -2583,6 +2706,7 @@ document.addEventListener("submit", e=>{ const pr=e.target.closest && e.target.c
 document.addEventListener("click", e=>{
   const t = e.target;
   const hit = sel => t.closest(sel);
+  const jb = hit("[data-jump]"); if(jb){ const sec=document.getElementById(jb.dataset.jump); if(sec){ const rm = matchMedia("(prefers-reduced-motion: reduce)").matches; sec.scrollIntoView({behavior: rm?"auto":"smooth", block:"start"}); const h=sec.querySelector("h2,h3"); if(h){ h.setAttribute("tabindex","-1"); h.focus({preventScroll:true}); } } return; }
   if(hit("[data-tabcats]")){ setSheet(!S.csOpen); return; }
   if(hit("[data-csx]") || hit("#csbg")){ setSheet(false); return; }
   if(hit("#csheet a")){ S.csOpen = false; $("#csheet").hidden = true; $("#csbg").hidden = true; }
