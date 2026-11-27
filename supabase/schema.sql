@@ -8,7 +8,7 @@
 --     product_placements, product_codes, product_sizes, retailers, retailer_store_states, settings, sections.
 --   Behind a "Visible to sales" switch (sections table; the team can always read them, anyone can when switched on):
 --     why_buy: product_selling_points, why_people_buy, why_people_buy_comparison, open_checks, why_people_buy_progress (on)
---     competitor_prices: product_competitors, competitor_prices (on)      flyers: product_flyers (on)
+--     competitor_prices: product_competitors, competitor_prices, competitor_price_history (on)      flyers: product_flyers (on)
 --     online_prices: online_prices (off)      decisions: product_internal (off)      price_changes: price_changes (off)
 --     review: competitor_reviews, product_review_status, suggestions, product_reviews, product_review_competitors,
 --       category_reviews (off). The step 3 tables are written only through their functions.
@@ -1059,6 +1059,53 @@ begin
   foreach t in array array['competitor_reviews','product_review_status','suggestions'] loop
     begin execute format('alter publication supabase_realtime add table public.%I', t); exception when duplicate_object then null; when undefined_object then null; end;
   end loop;
+end $$;
+
+-- ---------- step 6: prices by state, price history and change flags (David Owen's steps, Paula 27 Nov 2026) ----------
+-- Every weekly check adds rows here. Rows are never updated or deleted: the latest check is the current price.
+-- The weekly search rules and columns are in docs/weekly-price-search.md.
+create table if not exists public.competitor_price_history (
+  history_id          bigint generated always as identity primary key,
+  check_date          date not null,
+  product_id          text not null references public.products on delete cascade,
+  competitor_no       integer,                 -- the competitor slot on the board, when known
+  competitor_product  text not null,
+  website             text not null,
+  url                 text,
+  state               text not null check (state in ('NSW','VIC','QLD','SA','WA','TAS','ACT','NT')),
+  postcode            text,                    -- postcode used for the delivered price, e.g. 2001, 3001, 4001
+  product_price       numeric,                 -- GST-free, as advertised
+  freight             numeric,
+  delivered_price     numeric,                 -- product price plus freight
+  found               boolean not null default true,   -- false: "Not found", never estimated
+  note                text,
+  created_at          timestamptz not null default now()
+);
+create index if not exists competitor_price_history_product_idx on public.competitor_price_history (product_id, check_date desc);
+
+-- Read like competitor prices (Visible to sales switch). Only Paula, or the price search with the service key, adds rows.
+-- No update or delete is granted to anyone through the API.
+alter table public.competitor_price_history enable row level security;
+revoke all on public.competitor_price_history from anon, authenticated;
+drop policy if exists competitor_price_history_read on public.competitor_price_history;
+create policy competitor_price_history_read on public.competitor_price_history for select to anon, authenticated
+  using ((select public.is_team()) or (select public.section_visible('competitor_prices')));
+drop policy if exists competitor_price_history_insert on public.competitor_price_history;
+create policy competitor_price_history_insert on public.competitor_price_history for insert to authenticated with check (public.is_admin());
+grant select on public.competitor_price_history to anon, authenticated;
+grant insert on public.competitor_price_history to authenticated;
+update public.sections set table_names = 'product_competitors, competitor_prices, competitor_price_history',
+  description = 'Competitor names, products, advertised prices, and delivered prices by state.' where section_id = 'competitor_prices';
+
+-- What changed since the last check: price, freight, specs, features, range, or a new competitor product.
+alter table public.price_changes add column if not exists change_type text not null default 'Price';
+alter table public.price_changes drop constraint if exists price_changes_change_type_check;
+alter table public.price_changes add constraint price_changes_change_type_check check (change_type in ('Price','Freight','Specs','Features','Range','New product'));
+alter table public.price_changes add column if not exists detail text;   -- what changed, in plain words
+alter table public.price_changes add column if not exists state text;
+
+do $$ begin
+  begin execute 'alter publication supabase_realtime add table public.competitor_price_history'; exception when duplicate_object then null; when undefined_object then null; end;
 end $$;
 
 -- ---------- old storage ----------

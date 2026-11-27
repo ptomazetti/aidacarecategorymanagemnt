@@ -867,6 +867,8 @@ function route(){
   if(h==="slots") return {v:"slots"};
   if(h==="states") return {v:"states"};
   if(h==="discontinued") return {v:"discontinued"};
+  const dt = /^detail\/(.+)$/.exec(h);
+  if(dt) return {v:"detail", dpid:dt[1]};
   const mg = /^mgr\/([a-z]+)(?:\/p\/(.+))?$/.exec(h);
   if(mg && mgrOf(mg[1])) return {v:"mgr", mgr:mg[1], pid:mg[2] && S.prods.has(mg[2]) ? mg[2] : null};
   const gm = /^grp\/([^/]+)$/.exec(h);
@@ -880,10 +882,10 @@ function route(){
 }
 function go(h){ if(location.hash.slice(1)!==h) location.hash = h; else render(); }
 const pageStack = [];
-function pageKey(r){ return r.v==="cat" ? "cat/"+r.cat : r.v==="grp" ? "grp/"+r.grp : r.v==="mgr" ? "mgr/"+r.mgr : r.v; }
+function pageKey(r){ return r.v==="detail" ? "detail/"+r.dpid : r.v==="cat" ? "cat/"+r.cat : r.v==="grp" ? "grp/"+r.grp : r.v==="mgr" ? "mgr/"+r.mgr : r.v; }
 function trackPage(r){ const k=pageKey(r); if(pageStack[pageStack.length-1]===k) return; if(pageStack[pageStack.length-2]===k) pageStack.pop(); else pageStack.push(k); }
 function backTarget(){ if(pageStack.length>1) return pageStack[pageStack.length-2]; const k=pageStack[0]||"", g=k.startsWith("cat/")?grpOfCat(k.slice(4)):null; return g ? "grp/"+g.id : "home"; }
-function backBtn(){ const t=backTarget(), c=t.startsWith("cat/")?catOf(t.slice(4)):null, g=t.startsWith("grp/")?grpOf(t.slice(4)):null; const lbl = g?g.name:t==="home"?"Home":t==="table"?"Summary":t==="report"?"Report":t==="summary"?"Decisions":t==="slots"?"GBB":t==="discontinued"?"Discontinued":t.startsWith("mgr/")&&mgrOf(t.slice(4))?mgrOf(t.slice(4)).name:(c?c.name:"Back"); return `<button type="button" class="back" data-back="1"><span aria-hidden="true">←</span> Back to ${esc(lbl)}</button>`; }
+function backBtn(){ const t=backTarget(), c=t.startsWith("cat/")?catOf(t.slice(4)):null, g=t.startsWith("grp/")?grpOf(t.slice(4)):null; const lbl = t.startsWith("detail/")?"Price detail":g?g.name:t==="home"?"Home":t==="table"?"Summary":t==="report"?"Report":t==="summary"?"Decisions":t==="slots"?"GBB":t==="discontinued"?"Discontinued":t.startsWith("mgr/")&&mgrOf(t.slice(4))?mgrOf(t.slice(4)).name:(c?c.name:"Back"); return `<button type="button" class="back" data-back="1"><span aria-hidden="true">←</span> Back to ${esc(lbl)}</button>`; }
 function pLink(view, p){ return view==="cat" ? `#cat/${esc(p.cat)}/${esc(p.id)}` : `#${view}/p/${esc(p.id)}`; }
 
 /* ---------- render ---------- */
@@ -915,6 +917,7 @@ function render(){
   else if(r.v==="slots") $("#app").innerHTML = renderSlots();
   else if(r.v==="states") $("#app").innerHTML = renderStates();
   else if(r.v==="discontinued") $("#app").innerHTML = renderDisc();
+  else if(r.v==="detail") $("#app").innerHTML = renderDetail(r.dpid);
   if(S.state && r.v!=="states") $("#app").insertAdjacentHTML("afterbegin", stBanner());
   if(S.authNote) $("#app").insertAdjacentHTML("afterbegin", `<div class="stbar" role="status">${esc(S.authNote)}</div>`);
   const ss = $("#stSel"); if(ss && ss.value!==(S.state||"")) ss.value = S.state||"";
@@ -1129,7 +1132,7 @@ function card(p, cid, leaving, open){
   const gl = i.gap!=null ? gapLine(i) : (leaving ? "" : (!i.m.n ? "No competitor prices" : "No price to compare"));
   const top = leaving
     ? `<span class="cinfo"><span class="kind">${esc(p.kind||"")}</span><span class="nm">${esc(p.name)}</span><span class="sp">${esc(p.status||"")}</span></span>`
-    : `<span class="cinfo"><span class="nm">${esc(p.name)}</span><span class="sp">${esc(p.spec.slice(0,2).join(" · "))}</span>${p.flag?`<span class="sp"><span class="pill flag">${esc(p.flag)}</span></span>`:""}</span>`;
+    : `<span class="cinfo"><span class="nm">${esc(p.name)}</span><span class="sp">${esc(p.spec.slice(0,2).join(" · "))}</span>${p.flag||changeFlag(p)?`<span class="sp">${p.flag?`<span class="pill flag">${esc(p.flag)}</span> `:""}${changeFlag(p)}</span>`:""}</span>`;
   return `<button type="button" class="card ${sel?"sel":""}" data-open="${esc(open || ("cat/"+cid+"/"+p.id))}" data-pid="${esc(p.id)}"><span class="ctop">${thumb(p)}${top}${k==="none"||leaving?"":`<span class="cact">${actPill(k,p)}</span>`}</span><span class="pr">${nums(priceCells(p,i,leaving))}${gl?`<span class="gl">${gl}</span>`:""}${p.compFlag?`<span class="cmpf">Check comparison</span>`:""}${reviewed(p)?`<span class="rvtag">Reviewed with David</span>`:""}</span></button>`;
 }
 
@@ -1200,7 +1203,8 @@ function priceLine(p, i){
 function histBox(p){
   const h = histOf(p);
   if(!h.length) return "";
-  return `<div style="display:flex;flex-direction:column;gap:10px"><h3>Price changes${teamTag("price_changes")}</h3>${h.length ? `<div class="cbox">${h.slice(0,20).map(c=>`<div class="cr"><span>${esc(fmtDate(c.date))}, ${esc(c.site||"")}<span class="nt">${esc(c.who||"")}</span></span><span class="p">${money(num(c.old))} to ${money(num(c.new))}</span><span class="small">${gapTxt(gapOf(num(c.new),num(c.old)))}</span></div>`).join("")}</div>` : `<p class="small">No price changes recorded yet.</p>`}</div>`;
+  return `<div style="display:flex;flex-direction:column;gap:10px"><h3>Changes found by the price check${teamTag("price_changes")}</h3>${h.length ? `<div class="cbox">${h.slice(0,20).map(c=>c.type && c.type!=="Price" ? `<div class="cr"><span>${esc(fmtDate(c.date))}, ${esc(c.type)}${c.site?" at "+esc(c.site):""}<span class="nt">${esc(c.who||"")}${c.detail?": "+esc(c.detail):""}</span></span><span></span><span></span></div>`
+    : `<div class="cr"><span>${esc(fmtDate(c.date))}, ${esc(c.site||"")}${c.state?" ("+esc(c.state)+")":""}<span class="nt">${esc(c.who||"")}</span></span><span class="p">${money(num(c.old))} to ${money(num(c.new))}</span><span class="small">${gapTxt(gapOf(num(c.new),num(c.old)))}</span></div>`).join("")}</div>` : `<p class="small">No price changes recorded yet.</p>`}</div>`;
 }
 function cmpPick(p){
   if(isLeave(p)) return "";
@@ -1540,6 +1544,70 @@ function sugSection(){
     ${pend.length ? pend.map(y=>sugRow(y.p, y.x, true)).join("") : `<p class="msg">Nothing waiting.</p>`}
     ${dec.length ? `<details class="addc"><summary>Recently decided (${dec.length})</summary>${dec.map(y=>sugRow(y.p, y.x, true)).join("")}</details>` : ""}</section>`;
 }
+/* ---------- step 6: delivered prices by state, price history and change flags (David Owen's steps, Paula 27 Nov 2026) ----------
+   competitor_price_history keeps every weekly check and is never overwritten. The latest check per competitor product,
+   website and state is the current price. Delivered price = product price plus freight, GST-free. */
+function stateLatest(p){
+  const m = new Map();
+  (p.stateHist||[]).forEach(x=>{ const k = x.comp+"|"+x.site+"|"+x.state, o = m.get(k); if(!o || x.date > o.date) m.set(k, x); });
+  return [...m.values()];
+}
+/* National average delivered price: each competitor product counts once (its websites and states averaged first). */
+function deliveredAvg(p){
+  const rows = stateLatest(p).filter(x=>x.found && x.delivered!=null); if(!rows.length) return null;
+  const by = new Map(); rows.forEach(x=>{ if(!by.has(x.comp)) by.set(x.comp, []); by.get(x.comp).push(x.delivered); });
+  const per = [...by.values()].map(v=>v.reduce((a,b)=>a+b,0)/v.length), vals = rows.map(x=>x.delivered);
+  return {avg: per.reduce((a,b)=>a+b,0)/per.length, comps: per.length, n: rows.length, low: Math.min(...vals), high: Math.max(...vals),
+    date: rows.map(x=>x.date).sort().pop(), states: STATES.filter(s=>rows.some(x=>x.state===s))};
+}
+/* Changes found by the weekly check in the last 8 days: "New" for a new competitor product, "Changed" for the rest. */
+function recentChanges(p){
+  const cut = new Date(Date.now() - 8*86400000).toISOString().slice(0,10);
+  return histOf(p).filter(c=>String(c.date) >= cut);
+}
+function changeFlag(p){
+  const r = recentChanges(p); if(!r.length) return "";
+  const isNew = r.some(c=>c.type==="New product"), isChg = r.some(c=>c.type!=="New product");
+  const d = r.map(c=>c.date).sort().pop();
+  return [isNew?`<span class="pill flag" title="New competitor product found ${esc(fmtDate(d))}">New</span>`:"", isChg?`<span class="pill flag" title="Changed since the last check, ${esc(fmtDate(d))}">Changed</span>`:""].filter(Boolean).join(" ");
+}
+const chgText = c => c.type==="Price" ? `${esc(c.who||"")}${c.site?" at "+esc(c.site):""}${c.state?" ("+esc(c.state)+")":""}: ${money(num(c.old))} to ${money(num(c.new))}`
+  : `${esc(c.type)}${c.who?", "+esc(c.who):""}${c.site?" at "+esc(c.site):""}${c.detail?": "+esc(c.detail):""}`;
+function changeBox(p){
+  const r = recentChanges(p); if(!r.length) return "";
+  return `<div class="actbox" style="--c:var(--lime)"><div class="row"><span class="act a-watch">${r.some(c=>c.type==="New product")&&r.every(c=>c.type==="New product")?"New":"Changed"} since the last check</span>${teamTag("price_changes")}</div>
+    ${r.map(c=>`<p style="margin:0">${esc(fmtDate(c.date))}. ${chgText(c)}</p>`).join("")}</div>`;
+}
+function deliveredLine(p){
+  const d = deliveredAvg(p);
+  return `<div class="row" style="justify-content:space-between;gap:8px;align-items:baseline"><span class="small">${d ? `National average delivered ${money0(d.avg)}: ${plural(d.comps,"competitor")}, ${plural(d.n,"state price")} (${esc(d.states.join(", "))}), checked ${esc(fmtDate(d.date))}` : "No delivered prices by state yet"}</span><button type="button" class="linkbtn" data-detail="${esc(p.id)}">Detail</button></div>`;
+}
+function renderDetail(pid){
+  const p = S.prods.get(pid);
+  if(!p) return `<div class="ph"><div>${backBtn()}<h1>Price detail</h1></div></div><p class="msg">This product is not on the board.</p>`;
+  const open = `<a href="${isLeave(p) ? "#discontinued/p/"+esc(p.id) : "#cat/"+esc(p.cat)+"/"+esc(p.id)}">Open the product</a>`;
+  const head = `<div class="ph"><div>${backBtn()}<h1>${esc(p.name)}: prices by state</h1><p class="sub">Delivered price is the product price plus freight, GST-free, from the weekly price check. Postcodes: Sydney 2001, Melbourne 3001, Brisbane 4001. ${open}</p></div></div>`;
+  if(!vis("competitor_prices")) return head + `<p class="msg">Competitor prices are not visible to sales.</p>`;
+  const rows = stateLatest(p);
+  if(!rows.length) return head + `<p class="msg">No prices by state yet. The weekly price search adds them here, one row per product, competitor, website and state.</p>`;
+  const d = deliveredAvg(p), i = info(p);
+  const used = STATES.filter(s=>rows.some(x=>x.state===s));
+  const keys = [...new Set(rows.map(x=>x.comp+"|"+x.site))];
+  const cell = x => !x ? `<span class="small">Not checked</span>` : !x.found ? `<span class="small">Not found</span>` :
+    `${x.delivered!=null?`<b>${money(x.delivered)}</b>`:`<span class="small">No delivered price</span>`}<span class="small">${x.price!=null?money(x.price):"Price not found"} + ${x.freight!=null?(x.freight===0?"free freight":money(x.freight)+" freight"):"freight not found"}</span><span class="small">${esc(fmtDate(x.date))}</span>`;
+  const tiles = `<div class="stats" style="max-width:720px">
+    <div><span class="k">National average delivered</span><span class="v">${d?money0(d.avg):"n/a"}</span><span class="s">${d?`${plural(d.comps,"competitor")}, each counted once. ${plural(d.n,"state price")}, ${money(d.low)} to ${money(d.high)}`:"No delivered prices"}</span></div>
+    <div><span class="k">${LL(i.sz ? basisWord(i) : "Our LIST")}</span><span class="v">${i.listC!=null?money0(i.listC):"Not set"}</span><span class="s">${d && i.listC!=null ? Math.abs(gapOf(i.listC, d.avg)).toFixed(1)+"% "+(gapOf(i.listC, d.avg)<0?"below":"above")+" the delivered average" : ""}</span></div></div>`;
+  const table = `<div class="sumwrap"><table class="szt"><thead><tr><th scope="col">Competitor product</th><th scope="col">Website</th>${used.map(s=>`<th scope="col">${s}</th>`).join("")}</tr></thead><tbody>
+    ${keys.map(k=>{ const [comp, site] = k.split("|"), any = rows.find(x=>x.comp===comp && x.site===site);
+      return `<tr><th scope="row">${esc(comp)}</th><td>${safeUrl(any.url)?`<a href="${esc(safeUrl(any.url))}" target="_blank" rel="noopener">${esc(site)}</a>`:esc(site)}</td>${used.map(s=>`<td>${cell(rows.find(x=>x.comp===comp && x.site===site && x.state===s))}</td>`).join("")}</tr>`; }).join("")}</tbody></table></div>`;
+  const all = (p.stateHist||[]).slice().sort((a,b)=>b.date.localeCompare(a.date) || a.comp.localeCompare(b.comp) || STATES.indexOf(a.state)-STATES.indexOf(b.state));
+  const hist = `<details class="addc"><summary>Price history (${plural(all.length,"row")}, ${plural(new Set(all.map(x=>x.date)).size,"check")})</summary><p class="small" style="margin:8px 0">Every weekly check is kept. Old results are never overwritten.</p>
+    <div class="sumwrap"><table class="szt"><thead><tr><th scope="col">Checked</th><th scope="col">Competitor product</th><th scope="col">Website</th><th scope="col">State</th><th scope="col" class="num">Price</th><th scope="col" class="num">Freight</th><th scope="col" class="num">Delivered</th><th scope="col">Note</th></tr></thead><tbody>
+    ${all.map(x=>`<tr><td>${esc(fmtDate(x.date))}</td><td>${esc(x.comp)}</td><td>${esc(x.site)}</td><td>${esc(x.state)}${x.postcode?` <span class="small">${esc(x.postcode)}</span>`:""}</td><td class="num">${x.found?(x.price!=null?money(x.price):"Not found"):"Not found"}</td><td class="num">${x.found?(x.freight!=null?money(x.freight):"Not found"):""}</td><td class="num">${x.found&&x.delivered!=null?money(x.delivered):""}</td><td>${esc(x.note)}</td></tr>`).join("")}</tbody></table></div></details>`;
+  return head + `<div style="display:flex;flex-direction:column;gap:18px">${tiles}<section style="display:flex;flex-direction:column;gap:8px" aria-labelledby="stH"><h2 id="stH">Latest check by state</h2>${table}</section>${hist}</div>`;
+}
+document.addEventListener("click", e=>{ const el = e.target.closest && e.target.closest("[data-detail]"); if(el){ e.preventDefault(); go("detail/"+el.dataset.detail); } });
 function sizeBox(p, i){
   const sk = skuOf(p); if(!sk) return "";
   const pl = xs => xs.length ? xs.map(x=>`<span class="szp">${esc(x.comp)}, ${esc(x.site)} <b>${money(x.p)}</b></span>`).join("") : `<span class="small">None</span>`;
@@ -1610,9 +1678,10 @@ function detail(p){
     </div>
     ${actBox(p)}
   </div><div class="dcol">
+    ${isLeave(p) ? "" : changeBox(p)}
     ${ours}
     ${sizeBox(p, i)}
-    ${vis("competitor_prices")?`<div style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between"><h3>Competitor prices${teamTag("competitor_prices")}</h3><span class="small">${dates?"Checked "+esc(dates):""}</span></div>${lanes}${comps||`<p class="small">No competitors listed.</p>`}</div>`:""}
+    ${vis("competitor_prices")?`<div style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between"><h3>Competitor prices${teamTag("competitor_prices")}</h3><span class="small">${dates?"Checked "+esc(dates):""}</span></div>${isLeave(p)?"":deliveredLine(p)}${lanes}${comps||`<p class="small">No competitors listed.</p>`}</div>`:""}
     ${isLeave(p) ? "" : wpbBox(p)}
     ${isLeave(p) ? "" : crBox(p)}
     ${isLeave(p) ? "" : histBox(p)}

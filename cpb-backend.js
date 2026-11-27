@@ -38,11 +38,11 @@
   const PUBLIC = ["managers","manager_categories_to_add","category_groups","categories","category_needs","category_main_competitors",
     "category_gbb_competitors","category_range_extras","products","product_specs","product_placements","product_codes","product_sizes",
     "product_selling_points","product_flyers","product_competitors","competitor_prices","retailers","retailer_store_states","settings",
-    "why_people_buy","why_people_buy_comparison","open_checks","why_people_buy_progress"];
+    "why_people_buy","why_people_buy_comparison","open_checks","why_people_buy_progress","competitor_price_history"];
   const TEAM = ["competitor_reviews","product_review_status","suggestions","product_costs","product_sales","product_internal","online_prices","product_reviews","product_review_competitors",
     "category_reviews","retailer_sales_info","retailer_codes","retailer_net_prices","price_changes"];
   const KEYS = {
-    sections:["sort_order"], competitor_reviews:["product_id","competitor_no","site_no"], product_review_status:["product_id"], suggestions:["suggestion_id"],
+    sections:["sort_order"], competitor_price_history:["product_id","history_id"], competitor_reviews:["product_id","competitor_no","site_no"], product_review_status:["product_id"], suggestions:["suggestion_id"],
     managers:["manager_id"], manager_categories_to_add:["manager_id","sort_order"], category_groups:["group_id"], categories:["category_id"],
     category_needs:["category_id","sort_order"], category_main_competitors:["category_id","sort_order"], category_gbb_competitors:["category_id","sort_order"],
     category_range_extras:["category_id","sort_order"], products:["product_id"], product_specs:["product_id","line_no"],
@@ -80,7 +80,7 @@
 
   /* Tables behind a "Visible to sales" switch, by section. Anything in TEAM without a section is always team only. */
   const SECTION_OF = {product_selling_points:"why_buy", why_people_buy:"why_buy", why_people_buy_comparison:"why_buy", open_checks:"why_buy",
-    why_people_buy_progress:"why_buy", product_competitors:"competitor_prices", competitor_prices:"competitor_prices", product_flyers:"flyers",
+    why_people_buy_progress:"why_buy", product_competitors:"competitor_prices", competitor_prices:"competitor_prices", competitor_price_history:"competitor_prices", product_flyers:"flyers",
     online_prices:"online_prices", product_internal:"decisions", price_changes:"price_changes", product_reviews:"review",
     product_review_competitors:"review", category_reviews:"review", competitor_reviews:"review", product_review_status:"review", suggestions:"review"};
   async function loadAll(){
@@ -101,6 +101,7 @@
       ["retailer_codes","website"],["retailer_net_prices","website"]].forEach(([t, k]) => { G[t] = group(T[t], k); });
     const prices = group(T.competitor_prices, "product_id");
     /* Step 3 competitor review: answers per competitor line, stage status, and suggestions waiting for Paula. */
+    const ph = group(T.competitor_price_history, "product_id");
     const crL = group(T.competitor_reviews, "product_id"), crS = new Map(T.product_review_status.map(r => [r.product_id, r])), crG = group(T.suggestions, "product_id");
     const wpbR = group(T.why_people_buy, "product_id"), wpbC = group(T.why_people_buy_comparison, "reason_id"),
       wpbK = group(T.open_checks, "product_id"), wpbP = new Map(T.why_people_buy_progress.map(r => [r.product_id, r]));
@@ -153,6 +154,9 @@
             result:s(c.result), note:s(c.note), ourUrl:s(c.our_source_url), ourType:s(c.our_source_type), url:s(c.source_url), type:s(c.source_type), date:day(c.date_checked)}))})),
         checks:(wpbK.get(id)||[]).map(x => ({id:x.check_id, issue:s(x.issue), urls:s(x.source_urls).split(/\s+/).filter(Boolean), resolved:!!x.resolved, comment:s(x.comment), date:day(x.date_added)})),
         progress:wpbP.has(id) ? s(wpbP.get(id).status) : "", skipWhy:wpbP.has(id) ? s(wpbP.get(id).reason_if_skipped) : ""};
+      /* Step 6: every weekly check by state, oldest first. Never overwritten. */
+      p.stateHist = (ph.get(id)||[]).map(x => ({date:day(x.check_date), no:x.competitor_no, comp:s(x.competitor_product), site:s(x.website), url:s(x.url), state:s(x.state),
+        postcode:s(x.postcode), price:n(x.product_price), freight:n(x.freight), delivered:n(x.delivered_price), found:x.found!==false, note:s(x.note)}));
       p.crev = {lines:(crL.get(id)||[]).map(x => ({no:x.competitor_no, site:x.site_no, business:s(x.business_ok), product:s(x.product_ok), website:s(x.website_ok),
           cBusiness:s(x.correct_business), cProduct:s(x.correct_product), cUrl:s(x.correct_url), comment:s(x.comment), by:s(x.reviewed_by), at:s(x.reviewed_at)})),
         status:(st => st ? {done:!!st.manager_done, doneBy:s(st.manager_by), doneAt:s(st.manager_at), final:s(st.final_answer), finalNote:s(st.final_comment), finalBy:s(st.final_by), finalAt:s(st.final_at)} : null)(crS.get(id)),
@@ -220,7 +224,7 @@
     const byDate = new Map();
     T.price_changes.slice().sort((a,b) => n(a.change_id) - n(b.change_id)).forEach(x => {
       const d = day(x.change_date); if(!byDate.has(d)) byDate.set(d, []);
-      byDate.get(d).push({pid:x.product_id, product:x.product_name, who:x.who, site:x.website, old:n(x.old_price), new:n(x.new_price)});
+      byDate.get(d).push({pid:x.product_id, product:x.product_name, who:x.who, site:x.website, old:n(x.old_price), new:n(x.new_price), type:s(x.change_type) || "Price", detail:s(x.detail), state:s(x.state)});
     });
     const changes = [...byDate.entries()].map(([d, items]) => ({id:d, data:{date:d, items}}));
 
