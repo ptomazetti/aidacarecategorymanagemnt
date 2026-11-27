@@ -249,6 +249,7 @@ nav.main a[aria-current="page"]{background:rgba(255,255,255,.14);box-shadow:inse
 .chip i{width:8px;height:8px;border-radius:2px;background:var(--c,var(--mist));display:inline-block}
 .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .stats > div{background:var(--sunk);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.stats > div:last-child:nth-child(odd){grid-column:1 / -1}
 .stats .k{font-size:12px;color:var(--text)}
 .stats .v{font:700 19px/1.2 var(--display);color:var(--ink)}
 .stats .s{font-size:12px;color:var(--text)}
@@ -594,6 +595,10 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
 </div>
 <div class="overlay" id="ovSites" role="dialog" aria-modal="true" aria-labelledby="sitesTitle">
   <div class="sheet" style="width:min(560px,100%)">
+    <div class="sec"><h3>Visible to sales</h3>
+      <p class="small" style="margin-top:4px">People who are not signed in see only the ticked sections. Products, specs and our LIST always show. Cost, margin, sales and our net prices to retailers are always team only. A tick saves straight away.</p>
+      <div id="visForm" style="display:grid;gap:8px;margin-top:10px"></div><span class="small" id="visMsg" aria-live="polite"></span>
+    </div>
     <div class="sec"><h3 id="sitesTitle">Main competitors and settings</h3>
       <div id="sitesForm" style="display:grid;gap:12px;margin-top:10px"></div>
       <div class="ours-grid" style="margin-top:12px">
@@ -601,10 +606,6 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
         <div class="fld"><label for="invU">Investigate if units down (%)</label><input id="invU" type="number" min="0" step="1"></div>
         <div class="fld"><label for="invG">Investigate if price gap over (%)</label><input id="invG" type="number" min="0" step="1"></div>
       </div>
-    </div>
-    <div class="sec"><h3>Visible to sales</h3>
-      <p class="small" style="margin-top:4px">People who are not signed in see only the ticked sections. Products, specs and our LIST always show. Cost, margin, sales and our net prices to retailers are always team only. A tick saves straight away.</p>
-      <div id="visForm" style="display:grid;gap:8px;margin-top:10px"></div><span class="small" id="visMsg" aria-live="polite"></span>
     </div>
     <div class="ft"><span class="saved" id="sitesMsg"></span><button class="btn" type="button" id="sitesCancel">Cancel</button><button class="btn primary" type="button" id="sitesSave">Save</button></div>
   </div>
@@ -715,7 +716,7 @@ function limits(){ return { u: num(S.settings.investUnits) ?? 10, g: num(S.setti
 function facts(p){
   const i=info(p), ch=unitChg(p), abs = v => Math.abs(v).toFixed(0)+"%";
   const pos = i.gap==null ? "" : basisWord(i)+" "+(i.st==="above" ? abs(i.gap)+" above market" : i.st==="below" ? abs(i.gap)+" below market" : "in line with market");
-  const ut = ch==null ? (p.sales && p.sales.units>0 && p.sales.prior===0 ? "no sales last year to compare" : fewPrior(p) ? "too few sales last year to compare" : (p.sales ? "" : "no sales on file")) : (Math.abs(ch)<3 ? "units steady on last year" : `units ${ch>0?"up":"down"} ${abs(ch)} on last year`)+ucNote(p);
+  const ut = ch==null ? (p.sales && p.sales.units>0 && p.sales.prior===0 ? "no sales last year to compare" : fewPrior(p) ? "too few sales last year to compare" : (p.sales || !S.team ? "" : "no sales on file")) : (Math.abs(ch)<3 ? "units steady on last year" : `units ${ch>0?"up":"down"} ${abs(ch)} on last year`)+ucNote(p);
   return [pos, ut].filter(Boolean).join(", ");
 }
 function suggest(p){
@@ -1962,6 +1963,8 @@ function openSites(){
   $("#bandIn").value = band(); $("#invU").value = limits().u; $("#invG").value = limits().g; $("#sitesMsg").textContent = S.canWrite?"":"View only";
   $("#sitesSave").disabled = !S.canWrite;
   if(S.team && !S.canWrite) $("#sitesMsg").textContent = "Only Paula changes brands and settings";
+  document.querySelectorAll("#sitesForm input, #bandIn, #invU, #invG").forEach(x=>{ x.readOnly = !S.canWrite; });
+  $("#sitesCancel").textContent = S.canWrite ? "Cancel" : "Close";
   $("#visForm").innerHTML = SECTIONS.length ? SECTIONS.map(x=>`<label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" data-sec="${esc(x.id)}" ${x.visible?"checked":""} ${S.team?"":"disabled"} style="margin-top:3px"><span><b>${esc(x.name)}</b>${x.desc?`<span class="small" style="display:block">${esc(x.desc)}</span>`:""}</span></label>`).join("") : `<p class="small">Sections could not be loaded.</p>`;
   $("#visMsg").textContent = "";
   $("#ovSites").classList.add("open");
@@ -2081,7 +2084,7 @@ document.addEventListener("click", e=>{
   if(hit("#copySum")){ copyTsv(summaryData(), $("#sumMsg")); return; }
   if(hit("#dlReport")){ saveCsv("positioning-report-"+today()+".csv", reportData(), $("#repMsg")); return; }
   if(hit("#copyReport")){ copyTsv(reportData(), $("#repMsg")); return; }
-  if(hit("#editSites") && S.team){ openSites(); focusAfter("#sitesForm input"); return; }
+  if(hit("#editSites") && S.team){ openSites(); focusAfter("#visForm input"); return; }
   if(hit("#edClose") || hit("#edCancel") || t.id==="ov"){ closeEditor(); return; }
   if(hit("#edSave")){ saveEditor(); return; }
   if(hit("#sitesCancel") || t.id==="ovSites"){ $("#ovSites").classList.remove("open"); return; }
