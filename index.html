@@ -710,6 +710,19 @@ h1{font-weight:800}
   .wrap{padding:16px 14px 32px}
   .nums b{font-size:18px}
 }
+/* product list: position pill first, basis underneath */
+.card .gl{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.card .gl .glb{font-size:12px;color:var(--muted)}
+details.codes summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--link);min-height:32px;display:flex;align-items:center}
+details.codes .small{display:block;margin-top:2px}
+.xbtn .bi{display:none}
+@media (max-width:1023px){
+  /* product detail on the phone: back arrow, prices first */
+  .dhead .xbtn{order:-1;margin-left:-8px}
+  .dhead .xbtn .xi{display:none} .dhead .xbtn .bi{display:block;margin:auto}
+  .dhead h2{flex:1 1 calc(100% - 60px)}
+  .dcol > .stats{order:-1}
+}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -1316,7 +1329,8 @@ function priceCells(p, i, leaving){
 }
 function card(p, cid, leaving, open){
   const i = info(p), sel = route().pid===p.id, k = actionOf(p).k;
-  const gl = i.gap!=null ? gapLine(i) : (leaving ? "" : (!i.m.n ? "No competitor prices" : "No price to compare"));
+  const f = i.gap!=null ? fewTxt(i) : "";
+  const gl = i.gap!=null ? `${gapPill(i.gap)}<span class="glb">${esc(basisWord(i))} vs market average${f?", "+esc(f):""}</span>` : (leaving ? "" : (!i.m.n ? "No competitor prices" : "No price to compare"));
   const top = leaving
     ? `<span class="cinfo"><span class="kind">${esc(p.kind||"")}</span><span class="nm">${esc(p.name)}</span><span class="sp">${esc(p.status||"")}</span></span>`
     : `<span class="cinfo"><span class="nm">${esc(p.name)}</span><span class="sp">${esc(p.spec.slice(0,2).join(" · "))}</span>${p.flag||changeFlag(p)?`<span class="sp">${p.flag?`<span class="pill flag">${esc(p.flag)}</span> `:""}${changeFlag(p)}</span>`:""}</span>`;
@@ -1931,9 +1945,9 @@ function detail(p){
   const dates = [...new Set(p.comps.flatMap(c=>c.sites.map(x=>x.date)).concat(p.online.sites.map(x=>x.date)).filter(Boolean))].sort().map(fmtDate).join(", ");
   const exS = i.list!=null && gstF()>1 ? money(i.list)+" ex GST. " : "";
   const listS = i.propC!=null ? LL("Proposed")+" "+money0(i.propC)+(i.m.avg!=null?", "+Math.abs(gapOf(i.propC,i.m.avg)).toFixed(1)+"% "+(gapOf(i.propC,i.m.avg)<0?"below":"above")+" market":"") : "";
-  return `<div class="dhead"><h2 id="dName">${esc(p.name)}</h2><span class="small" id="dMsg" aria-live="polite"></span><button type="button" class="btn" data-export="${esc(p.id)}">${S.dl?"Export to Excel":"Copy for Excel"}</button>${S.canWrite?`<button type="button" class="btn primary" data-edit="${esc(p.id)}">Edit prices</button>`:""}<button type="button" class="xbtn" id="dClose" aria-label="Close details">×</button></div>
+  return `<div class="dhead"><h2 id="dName">${esc(p.name)}</h2><span class="small" id="dMsg" aria-live="polite"></span><button type="button" class="btn" data-export="${esc(p.id)}">${S.dl?"Export to Excel":"Copy for Excel"}</button>${S.canWrite?`<button type="button" class="btn primary" data-edit="${esc(p.id)}">Edit prices</button>`:""}<button type="button" class="xbtn" id="dClose" aria-label="Close details"><span class="xi" aria-hidden="true">×</span><svg class="bi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button></div>
   <div class="dbody">${cmpBox(p)}<div class="dcol">
-    <div class="dtop">${thumb(p)}<div style="display:flex;flex-direction:column;gap:8px;min-width:0">${(places||p.placements.length)?`<div class="row">${gbbChips(p)}${places}</div>`:""}${p.spec.length?`<span class="small">${esc(p.spec.join(" · "))}</span>`:""}${codesOf(p).length?`<span class="small">Codes: ${esc(codesOf(p).join(", "))}</span>`:""}${(p.flyers||[]).length?`<span class="row" style="gap:8px">${flyLinks(p)}</span>`:""}${reasonsOf(p)?`<div class="why"><span class="lb">Selling points${teamTag("why_buy")}</span><ol>${reasonsOf(p).map(r=>`<li>${esc(r)}</li>`).join("")}</ol></div>`:""}</div></div>
+    <div class="dtop">${thumb(p)}<div style="display:flex;flex-direction:column;gap:8px;min-width:0">${(places||p.placements.length)?`<div class="row">${gbbChips(p)}${places}</div>`:""}${p.spec.length?`<span class="small">${esc(p.spec.join(" · "))}</span>`:""}${codesOf(p).length?`<details class="codes"><summary>Product codes (${codesOf(p).length})</summary><span class="small">${esc(codesOf(p).join(", "))}</span></details>`:""}${(p.flyers||[]).length?`<span class="row" style="gap:8px">${flyLinks(p)}</span>`:""}${reasonsOf(p)?`<div class="why"><span class="lb">Selling points${teamTag("why_buy")}</span><ol>${reasonsOf(p).map(r=>`<li>${esc(r)}</li>`).join("")}</ol></div>`:""}</div></div>
     ${cmpPick(p)}
     ${p.compFlag?`<div class="actbox" style="--c:var(--lime)"><div class="row"><span class="act a-watch">Check comparison</span></div><p>${esc(p.compFlag)}</p></div>`:""}
     <div class="stats">
