@@ -383,7 +383,7 @@
     if(dlg) dlg.remove();
     lastFocus = document.activeElement;
     const forms = {
-      signin: `<form><h2>Team sign in</h2><p>Only needed to make changes.</p>
+      signin: `<form><h2>Category team login</h2><p>Only needed to make changes.</p>
         <label>Email<input name="email" type="email" autocomplete="username" required></label>
         <label>Password<input name="pw" type="password" autocomplete="current-password" required></label>
         <div class="msg" role="status" aria-live="polite"></div>
@@ -403,7 +403,7 @@
         <div class="msg" role="status" aria-live="polite"></div>
         <div class="row"><span></span><button class="pri">Save password</button></div></form>`
     };
-    dlg = el(`<dialog id="cpbAuth" aria-label="Team sign in">${forms[mode] || forms.signin}</dialog>`);
+    dlg = el(`<dialog id="cpbAuth" aria-label="Category team login">${forms[mode] || forms.signin}</dialog>`);
     document.body.appendChild(dlg);
     const f = dlg.querySelector("form"), msg = dlg.querySelector(".msg");
     dlg.addEventListener("click", e => {
