@@ -529,3 +529,21 @@ begin
     end;
   end loop;
 end $$;
+
+-- ---------- team-only sign-in ----------
+-- Only emails on the team list (members) can create a login. Anyone else gets an error.
+create or replace function public.only_team_signups()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from public.members m where lower(m.email) = lower(new.email)) then
+    raise exception 'This email is not on the team list.';
+  end if;
+  return new;
+end $$;
+revoke all on function public.only_team_signups() from public, anon, authenticated;
+drop trigger if exists only_team_signups on auth.users;
+create trigger only_team_signups before insert on auth.users for each row execute function public.only_team_signups();
+
+-- ---------- old storage ----------
+-- legacy_docs and legacy_docs_history hold the data as it was before 27 Nov 2026 (one table of bundled records).
+-- Kept as a backup only, with no access through the API. Safe to delete once the new tables are confirmed.
