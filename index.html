@@ -562,11 +562,6 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 [hidden]{display:none!important}
-.gate{max-width:520px;margin:60px auto;display:flex;flex-direction:column;gap:14px}
-.gate h1{margin:0}
-.gate p{margin:0}
-.gate .gnote{padding:10px 12px;border-radius:8px;background:var(--line2,#F1F2F4)}
-body.gated .gsearch,body.gated .stpick,body.gated #menuBtn{display:none}
 </style>
 </head>
 <body>
@@ -581,6 +576,7 @@ body.gated .gsearch,body.gated .stpick,body.gated #menuBtn{display:none}
     <label class="stpick"><span class="sr">Customer state</span><select id="stSel" aria-label="Customer state"><option value="">All Australia</option><option>NSW</option><option>VIC</option><option>QLD</option><option>SA</option><option>WA</option><option>TAS</option><option>ACT</option><option>NT</option></select></label>
     <button type="button" class="btn menubtn" id="menuBtn" aria-expanded="false" aria-controls="nav">Menu</button>
     <nav class="main" id="nav" aria-label="Main"></nav>
+    <button type="button" class="btn" id="signIn" hidden onclick="CPB.openSignIn()">Sign in</button>
     <button type="button" class="btn" id="signOut" hidden onclick="CPB.signOut()">Sign out</button>
   </div>
 </header>
@@ -876,14 +872,8 @@ function renderNav(r){
   const items = [["home","Home",r.v==="home"]].concat(MGRS.map(m=>[`mgr/${m.id}`, m.name.split(" ")[0], (r.v==="mgr" && r.mgr===m.id) || (r.v==="cat" && catMgr(catOf(r.cat))===m.id) || (r.v==="grp" && grpMgr(grpOf(r.grp))===m.id)])).concat([["table","Summary",r.v==="table"],["report","Report",r.v==="report"],["states","States",r.v==="states"],["discontinued","Discontinued",r.v==="discontinued"]]);
   $("#nav").innerHTML = items.map(([h,t,on])=>`<a href="#${esc(h)}" ${on?'aria-current="page"':""}>${esc(t)}</a>`).join("");
 }
-/* The board is for the team only (Paula, 27 Nov 2026). Anyone else sees the sign-in page. */
-function renderGate(){
-  $("#nav").innerHTML = "";
-  $("#app").innerHTML = `<section class="gate" aria-labelledby="gateH"><h1 id="gateH">Category Pricing Board</h1><p>For the Category Management team. Sign in with your Aidacare email.</p>${S.authNote?`<p class="gnote" role="status">${esc(S.authNote)}</p>`:""}<div><button type="button" class="btn primary" onclick="CPB.openSignIn()">Team sign in</button></div><p class="small">First time here? Choose Team sign in, then Create your login.</p></section>`;
-}
 function render(){
   if(!S.ready) return;
-  if(!S.team){ renderGate(); return; }
   if(!S.got.c || !S.got.p || !S.got.r) return;
   if(!S.prods.size){ $("#app").innerHTML = `<div class="msg">No products are loaded yet.</div>`; return; }
   const r = route();
@@ -904,6 +894,7 @@ function render(){
   else if(r.v==="states") $("#app").innerHTML = renderStates();
   else if(r.v==="discontinued") $("#app").innerHTML = renderDisc();
   if(S.state && r.v!=="states") $("#app").insertAdjacentHTML("afterbegin", stBanner());
+  if(S.authNote) $("#app").insertAdjacentHTML("afterbegin", `<div class="stbar" role="status">${esc(S.authNote)}</div>`);
   const ss = $("#stSel"); if(ss && ss.value!==(S.state||"")) ss.value = S.state||"";
   if(keep==="q"||keep==="tq"||/^rv-/.test(keep||"")){ const el=document.getElementById(keep); if(el){ el.focus(); try{ el.setSelectionRange(caret,caret); }catch(_){} } }
   renderDrawer(r);
@@ -1028,7 +1019,7 @@ function renderHome(){
   const gapHtml = `<section class="hsec" aria-labelledby="gapH"><div class="row" style="justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 16px"><h2 id="gapH">Biggest gaps by category</h2><span class="small">The product furthest from the market on each side. Click a category to see all its products.</span></div>
     <div class="gx"><div class="gg"><div class="gh gh0">Category</div><div class="gh b">Most below market</div><div class="gh a">Most above market</div>${gRows}</div></div>
     <p class="small">Our ${esc(LL("LIST"))} against the average online price of the competitors. Bars to the same scale. In line (within ${band()}%) is not shown${nChk?`, and the ${plural(nChk,"product")} marked Check comparison ${nChk===1?"is":"are"} left out`:""}.</p></section>`;
-  return `<h1 class="sr">Category Pricing Board</h1>
+  return `<h1 class="sr">Category Pricing Board</h1>${S.canWrite?"":`<p class="stbar" role="status">View only. Paula approves every change.</p>`}
   <section class="hsec" aria-labelledby="mgrH"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 id="mgrH">By category manager</h2><span class="legend"><i class="above"></i>Above <i class="inline"></i>In line <i class="below"></i>Below <i class="none"></i>No market price</span></div><div class="mgrs">${mgrs}</div></section>
   ${gapHtml}
   <p class="foot"><button type="button" class="linkbtn" id="editSites">Main competitors and settings</button></p>`;
@@ -2058,11 +2049,13 @@ window.addEventListener("hashchange", ()=>{
   if(!db){ $("#status").textContent="Can't reach the price database. Check your connection and reload."; return; }
   S.db = db;
   S.team = !!(window.CPB && CPB.isTeam());
-  S.canWrite = S.team;
+  S.canWrite = S.team && !!(window.CPB && CPB.isAdmin && CPB.isAdmin());
   const signedIn = !!(window.CPB && CPB.signedIn());
   if(signedIn){ const so=$("#signOut"); if(so){ so.hidden=false; so.title="Signed in as "+CPB.email(); } }
+  else { const si=$("#signIn"); if(si) si.hidden=false; }
+  /* No login needed to see the board (Paula, 27 Nov 2026). Only Paula signs in, to make changes. */
+  if(signedIn && !S.team) S.authNote = (window.CPB && CPB.note()) || "This login is not on the team list yet. Ask Paula to add it.";
   S.ready = true;
-  if(!S.team){ S.authNote = signedIn ? ((window.CPB && CPB.note()) || "This login is not on the team list yet. Ask Paula to add it.") : ""; document.body.classList.add("gated"); render(); return; }
   claude.use("downloads").then(d=>{ S.dl = d || null; render(); }).catch(()=>{});
   const timer = setTimeout(()=>{ if(!(S.got.c&&S.got.p)){ const st=$("#status"); if(st){ st.className="msg warn"; st.textContent="Saved products can't be reached yet. Check your connection; the page will fill in when they arrive."; } } }, 10000);
   const fail = e => { clearTimeout(timer); const st=$("#status"); if(st){ st.className="msg warn"; st.textContent="Saved products could not be loaded ("+((e&&e.code)||"error")+")."; } };

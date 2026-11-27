@@ -7,9 +7,11 @@
 --     category_needs, category_main_competitors, category_gbb_competitors, category_range_extras, products,
 --     product_specs, product_placements, product_codes, product_sizes, product_selling_points, product_flyers,
 --     product_competitors, competitor_prices, retailers, retailer_store_states, settings.
---   Team-only tables, signed in with an email listed in members: product_costs, product_sales, product_internal,
---     online_prices, product_reviews, product_review_competitors, category_reviews, retailer_sales_info,
---     retailer_codes, retailer_net_prices, price_changes, change_history, members.
+--   Until the site is approved (Paula, 27 Nov 2026) these can also be read by anyone with the link:
+--     product_costs, product_sales, product_internal, online_prices, product_reviews, product_review_competitors,
+--     category_reviews, retailer_sales_info, retailer_codes, retailer_net_prices, price_changes.
+--     Once approved, put them back to team only (signed in with an email listed in members).
+--   Team only: change_history, members.
 --   Only the team can change anything. Every change is copied to change_history.
 -- Prices are compared GST-free, as they are. No GST is added anywhere.
 
@@ -365,7 +367,9 @@ begin
     execute format('grant select on public.%I to anon', t);
   end loop;
   foreach t in array team loop
-    execute format('create policy %I on public.%I for select to authenticated using (public.is_team())', t||'_read', t);
+    -- Open until the site is approved. Team only again later: for select to authenticated using (public.is_team())
+    execute format('create policy %I on public.%I for select to anon, authenticated using (true)', t||'_read', t);
+    execute format('grant select on public.%I to anon', t);
   end loop;
   foreach t in array pub || team loop
     execute format('create policy %I on public.%I for insert to authenticated with check (public.is_team())', t||'_insert', t);

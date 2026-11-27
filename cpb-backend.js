@@ -1,16 +1,16 @@
 /* Category Pricing Board: data and sign-in through Supabase.
    The data sits in plain tables (see supabase/schema.sql). This file reads the tables, builds the product and
    category records the board works with, and saves changes back with save_product, save_category and save_settings.
-   The board is for the team only: nothing is loaded until a team member signs in (an email in the members table).
-   Cost, sales, notes, reviews, our products on other websites, retailer net prices and the price change log sit in
-   team-only tables in the database as well. */
+   Until the site is approved there is no login to view it (Paula, 27 Nov 2026): every table below is read by anyone with
+   the link. Only Paula signs in, to make changes (role admin in members). The login and team-only rules come back once
+   the site is approved. */
 (function(){
   "use strict";
   const CFG = window.CPB_CONFIG || {};
   const mkErr = (code, msg) => { const e = new Error(msg || code); e.code = code; return e; };
   const clone = o => o==null ? o : JSON.parse(JSON.stringify(o));
 
-  let sb = null, session = null, team = false, authNote = "";
+  let sb = null, session = null, team = false, admin = false, authNote = "";
   const hash = location.hash || "";
   const linkType = /type=(invite|recovery|signup|magiclink)/.exec(hash);
 
@@ -19,7 +19,9 @@
     sb = window.supabase.createClient(CFG.url, CFG.key, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}});
     try{
       const r = await sb.auth.getSession(); session = r.data && r.data.session;
-      if(session){ const t = await sb.rpc("is_team"); team = t.data === true; if(!team) authNote = "This login is not on the team list yet. Ask Paula to add it."; }
+      if(session){ const t = await sb.rpc("is_team"); team = t.data === true; if(!team) authNote = "This login is not on the team list yet. Ask Paula to add it.";
+        /* Paula (role admin in members) is the only one who changes the board until approvals are set up (27 Nov 2026). */
+        if(team){ try{ const m = await sb.from("members").select("role").eq("email", String(session.user.email || "").toLowerCase()); admin = !!(m.data && m.data[0] && m.data[0].role === "admin"); }catch(_){ admin = false; } } }
     }catch(_){ team = false; }
     sb.auth.onAuthStateChange((ev, s) => {
       session = s;
@@ -70,11 +72,11 @@
   const blankSite = () => ({site:"", p:null, url:"", date:""});
 
   async function loadAll(){
-    if(!team) throw mkErr("permission-denied", "Sign in with a team email to see the board.");
     const pubRows = await Promise.all(PUBLIC.map(fetchAll));
     const T = {}; PUBLIC.forEach((t, i) => { T[t] = pubRows[i]; });
-    if(team){ const teamRows = await Promise.all(TEAM.map(fetchAll)); TEAM.forEach((t, i) => { T[t] = teamRows[i]; }); }
-    else TEAM.forEach(t => { T[t] = []; });
+    /* Signed out: a table the database still keeps for the team comes back empty instead of stopping the page. */
+    const teamRows = await Promise.all(TEAM.map(t => team ? fetchAll(t) : fetchAll(t).catch(() => [])));
+    TEAM.forEach((t, i) => { T[t] = teamRows[i]; });
     return build(T);
   }
 
@@ -174,7 +176,7 @@
     const settings = st ? {band:n(st.in_line_band_pct), investUnits:n(st.investigate_units_down_pct), investGap:n(st.investigate_gap_pct), listGst:"free", updated:s(st.updated_at)} : null;
 
     let retail = null;
-    if(team && T.retailer_sales_info.length){
+    if(T.retailer_sales_info.length){
       const ri = T.retailer_sales_info[0], sites = {};
       const siteOf = w => sites[w] || (sites[w] = {codes:[], items:{}});
       T.retailer_codes.forEach(x => { siteOf(x.website).codes.push(x.customer_code); });
@@ -225,7 +227,7 @@
 
   /* ---------- saving ---------- */
   async function write(path, data){
-    if(!team) throw mkErr("invalid_argument", "You can view this page but not change it.");
+    if(!team || !admin) throw mkErr("invalid_argument", "You can view this page but not change it.");
     const [coll, id] = [path.split("/")[0], path.slice(path.indexOf("/") + 1)];
     const body = Object.assign(clone(data) || {}, {id});
     const call = coll === "products" ? ["save_product", {p: body}] : coll === "categories" ? ["save_category", {c: body}] : path === "settings/main" ? ["save_settings", {s: body}] : null;
@@ -246,8 +248,8 @@
     })
   };
   const USER = {
-    can: async k => k === "data.write" ? team : null,
-    canEdit: async () => team,
+    can: async k => k === "data.write" ? (team && admin) : null,
+    canEdit: async () => team && admin,
     email: async () => (session && session.user && session.user.email) || ""
   };
   const MIME = {csv: "text/csv;charset=utf-8", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"};
@@ -283,7 +285,7 @@
     if(dlg) dlg.remove();
     lastFocus = document.activeElement;
     const forms = {
-      signin: `<form><h2>Team sign in</h2><p>For the Category Management team.</p>
+      signin: `<form><h2>Team sign in</h2><p>Only needed to make changes.</p>
         <label>Email<input name="email" type="email" autocomplete="username" required></label>
         <label>Password<input name="pw" type="password" autocomplete="current-password" required></label>
         <div class="msg" role="status" aria-live="polite"></div>
@@ -341,6 +343,7 @@
   window.CPB = {
     ready,
     isTeam: () => team,
+    isAdmin: () => admin,
     signedIn: () => !!(session && session.user),
     email: () => (session && session.user && session.user.email) || "",
     note: () => authNote,
