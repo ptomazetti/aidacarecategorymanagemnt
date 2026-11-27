@@ -2,7 +2,7 @@
 
 Repo ptomazetti/aidacarecategorymanagemnt. Front end on GitHub Pages, database in Supabase.
 
-Users: the category team (Paula, Josh, Anthony, Luke, David). Sales use the same board without signing in.
+Users: the category team (Paula, Josh, Anthony, Luke, David). Team only: there is no sales view (Paula, 27 Nov 2026).
 
 Follow these rules in every session.
 
@@ -25,7 +25,7 @@ Follow these rules in every session.
 
 ## Where things are
 
-- index.html: the whole site, one board for everyone. Signed-out visitors (sales) see only the sections switched on under Visible to sales. Edit it directly. It holds no product data.
+- index.html: the whole site. Team only: anyone not signed in with a team email sees the sign-in page. Edit it directly. It holds no product data.
 - cpb-backend.js: reads the Supabase tables, builds the records the page uses, saves through save_product, save_category and save_settings, and runs the sign-in dialog.
 - supabase/schema.sql: every table, the access rules and the save functions.
 - Team list: the members table. Only those emails see or change team-only data.
