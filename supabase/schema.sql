@@ -13,7 +13,8 @@
 --     review: competitor_reviews, product_review_status, suggestions, product_reviews, product_review_competitors,
 --       category_reviews (off). The step 3 tables are written only through their functions.
 --   Always team only, no switch: product_costs, product_sales, retailer_sales_info, retailer_codes,
---     retailer_net_prices, change_history, members.
+--     retailer_net_prices, change_history, members, data_uploads, sales_by_sku, gp_item_prices, gp_price_levels,
+--     average_sell_prices.
 --   Only Paula (role admin) changes the board and switches sections. Every change is copied to change_history.
 -- Prices are compared GST-free, as they are. No GST is added anywhere.
 
@@ -1107,6 +1108,83 @@ alter table public.price_changes add column if not exists state text;
 do $$ begin
   begin execute 'alter publication supabase_realtime add table public.competitor_price_history'; exception when duplicate_object then null; when undefined_object then null; end;
 end $$;
+
+-- ---------- steps 4 and 5: sales coverage and our internal prices (David Owen's steps, Paula 27 Nov 2026) ----------
+-- Always team only: no Visible to sales switch. Loaded from Paula's exports; see docs/data-uploads.md.
+create table if not exists public.data_uploads (
+  upload_id    bigint generated always as identity primary key,
+  dataset      text not null check (dataset in ('Cadence sales by SKU','GP item prices','GP price levels','Average sell price')),
+  source_file  text,
+  period_from  date,
+  period_to    date,
+  date_pulled  date,
+  row_count    integer,
+  channels     text,          -- average sell price: which channels are included
+  uploaded_at  timestamptz not null default now(),
+  uploaded_by  text
+);
+create table if not exists public.sales_by_sku (
+  row_id            bigint generated always as identity primary key,
+  upload_id         bigint references public.data_uploads on delete cascade,
+  sku               text not null,
+  description       text,
+  cadence_category  text,
+  period_from       date,
+  period_to         date,
+  revenue           numeric,
+  margin            numeric,      -- gross profit in dollars
+  units             integer
+);
+create index if not exists sales_by_sku_sku_idx on public.sales_by_sku (sku);
+create table if not exists public.gp_item_prices (
+  row_id       bigint generated always as identity primary key,
+  upload_id    bigint references public.data_uploads on delete cascade,
+  sku          text not null,
+  description  text,
+  gp_category  text,
+  cost         numeric,
+  landed_cost  numeric,
+  list_price   numeric,
+  date_pulled  date
+);
+create index if not exists gp_item_prices_sku_idx on public.gp_item_prices (sku);
+create table if not exists public.gp_price_levels (
+  row_id       bigint generated always as identity primary key,
+  upload_id    bigint references public.data_uploads on delete cascade,
+  sku          text not null,
+  level        text not null check (level in ('A','B','C','D','P1')),
+  price        numeric,
+  date_pulled  date
+);
+create index if not exists gp_price_levels_sku_idx on public.gp_price_levels (sku);
+create table if not exists public.average_sell_prices (
+  row_id              bigint generated always as identity primary key,
+  upload_id           bigint references public.data_uploads on delete cascade,
+  sku                 text not null,
+  average_sell_price  numeric,
+  units               integer,
+  date_from           date,
+  date_to             date,
+  channels            text
+);
+create index if not exists average_sell_prices_sku_idx on public.average_sell_prices (sku);
+do $$
+declare t text;
+begin
+  foreach t in array array['data_uploads','sales_by_sku','gp_item_prices','gp_price_levels','average_sell_prices'] loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('revoke all on public.%I from anon, authenticated', t);
+    execute format('drop policy if exists %I on public.%I', t||'_read', t);
+    execute format('create policy %I on public.%I for select to authenticated using (public.is_team())', t||'_read', t);
+    execute format('drop policy if exists %I on public.%I', t||'_insert', t);
+    execute format('create policy %I on public.%I for insert to authenticated with check (public.is_admin())', t||'_insert', t);
+    execute format('drop policy if exists %I on public.%I', t||'_delete', t);
+    execute format('create policy %I on public.%I for delete to authenticated using (public.is_admin())', t||'_delete', t);
+    execute format('grant select, insert, delete on public.%I to authenticated', t);
+  end loop;
+end $$;
+drop trigger if exists data_uploads_history on public.data_uploads;
+create trigger data_uploads_history after insert or update or delete on public.data_uploads for each row execute function public.log_change();
 
 -- ---------- old storage ----------
 -- legacy_docs and legacy_docs_history hold the data as it was before 27 Nov 2026 (one table of bundled records).

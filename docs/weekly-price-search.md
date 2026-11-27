@@ -49,3 +49,17 @@ Add one row to `price_changes` for each change found. The product shows a "Chang
 | change_type | Price, Freight, Specs, Features, Range or New product |
 | old_price, new_price | For Price changes only |
 | detail | What changed in plain words, e.g. "Weight now listed as 10.9 kg (was 11.2 kg)" or "New lightweight model in the category" |
+
+## Scheduled task text (to replace the old Friday price check)
+
+The old "Friday price check, Category Pricing Board" scheduled task still reads and writes the retired artifact board, so it does not update this site. Create a new weekly scheduled task with the Supabase connector (for example Fridays 7:46 am Sydney, a new session each time), then turn the old one off. The new session cannot see this repository, so paste this whole file as the task text, followed by the paragraphs below:
+
+> Weekly Friday price check for Paula Tomazetti's Category Pricing Board (https://ptomazetti.github.io/aidacarecategorymanagemnt/). The data is in her Supabase project xadsfuwovcdelnudttdr: use the Supabase connector and execute_sql. Run it unattended and do not ask questions. The old Claude artifact board is retired: do not read or write it.
+>
+> Follow every rule in "Search rules for competitor prices" above. Shopify stores (URL contains /products/) can show a different price to WebFetch: also run WebSearch for the product name and site, and accept a new price only when both agree within $1, otherwise keep the old price with the note "Price not confirmed <date>". If a price moves more than 25%, keep the old price with the note "Check: page showed $X on <date>". Record sale prices with the note "Sale, was $X". Do not add websites or competitor products to the board.
+>
+> 1. Read products (not discontinued), product_competitors, competitor_prices, online_prices and category_main_competitors.
+> 2. For every competitor_prices and online_prices row with a url, read the current price for the same size or type and update price (only when confirmed), note and checked_on = today.
+> 3. Add the state rows to competitor_price_history as described above (Sydney 2001, Melbourne 3001, Brisbane 4001). Never update or delete history rows.
+> 4. Add each real change to price_changes as described above.
+> 5. Send Paula one short summary with SendUserMessage in simple Australian English, no em dashes: prices checked, changed, not confirmed, state rows added, Not found, and any New product or Specs changes. Say which tool or website was unavailable, if any.

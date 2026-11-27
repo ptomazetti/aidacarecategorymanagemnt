@@ -39,10 +39,10 @@
     "category_gbb_competitors","category_range_extras","products","product_specs","product_placements","product_codes","product_sizes",
     "product_selling_points","product_flyers","product_competitors","competitor_prices","retailers","retailer_store_states","settings",
     "why_people_buy","why_people_buy_comparison","open_checks","why_people_buy_progress","competitor_price_history"];
-  const TEAM = ["competitor_reviews","product_review_status","suggestions","product_costs","product_sales","product_internal","online_prices","product_reviews","product_review_competitors",
+  const TEAM = ["data_uploads","sales_by_sku","gp_item_prices","gp_price_levels","average_sell_prices","competitor_reviews","product_review_status","suggestions","product_costs","product_sales","product_internal","online_prices","product_reviews","product_review_competitors",
     "category_reviews","retailer_sales_info","retailer_codes","retailer_net_prices","price_changes"];
   const KEYS = {
-    sections:["sort_order"], competitor_price_history:["product_id","history_id"], competitor_reviews:["product_id","competitor_no","site_no"], product_review_status:["product_id"], suggestions:["suggestion_id"],
+    sections:["sort_order"], data_uploads:["upload_id"], sales_by_sku:["row_id"], gp_item_prices:["row_id"], gp_price_levels:["row_id"], average_sell_prices:["row_id"], competitor_price_history:["product_id","history_id"], competitor_reviews:["product_id","competitor_no","site_no"], product_review_status:["product_id"], suggestions:["suggestion_id"],
     managers:["manager_id"], manager_categories_to_add:["manager_id","sort_order"], category_groups:["group_id"], categories:["category_id"],
     category_needs:["category_id","sort_order"], category_main_competitors:["category_id","sort_order"], category_gbb_competitors:["category_id","sort_order"],
     category_range_extras:["category_id","sort_order"], products:["product_id"], product_specs:["product_id","line_no"],
@@ -228,7 +228,23 @@
     });
     const changes = [...byDate.entries()].map(([d, items]) => ({id:d, data:{date:d, items}}));
 
-    return {categories, products, changes, docs:{"settings/main":settings, "retail/main":retail, "reference/main":reference}};
+    /* Steps 4 and 5, team only: sales by SKU (Cadence), GP item prices and price levels, average sell price.
+       The newest upload of each data set wins. */
+    let gpData = null;
+    if(T.data_uploads.length){
+      const latest = {}; T.data_uploads.forEach(u => { const o = latest[u.dataset]; if(!o || n(u.upload_id) > n(o.upload_id)) latest[u.dataset] = u; });
+      const pick = (rows, ds) => { const u = latest[ds]; return u ? rows.filter(r => n(r.upload_id) === n(u.upload_id)) : []; };
+      const key = v => String(v||"").trim().toUpperCase();
+      const sales = {}; pick(T.sales_by_sku, "Cadence sales by SKU").forEach(r => { const k = key(r.sku), o = sales[k] || (sales[k] = {sku:k, desc:s(r.description), cat:s(r.cadence_category), revenue:0, margin:0, units:0});
+        o.revenue += n(r.revenue) || 0; o.margin += n(r.margin) || 0; o.units += n(r.units) || 0; });
+      const gp = {}; pick(T.gp_item_prices, "GP item prices").forEach(r => { gp[key(r.sku)] = {sku:key(r.sku), desc:s(r.description), cat:s(r.gp_category), cost:n(r.cost), landed:n(r.landed_cost), list:n(r.list_price), date:day(r.date_pulled)}; });
+      const levels = {}; pick(T.gp_price_levels, "GP price levels").forEach(r => { const k = key(r.sku); (levels[k] = levels[k] || {})[r.level] = n(r.price); });
+      const asp = {}; pick(T.average_sell_prices, "Average sell price").forEach(r => { asp[key(r.sku)] = {price:n(r.average_sell_price), units:n(r.units), from:day(r.date_from), to:day(r.date_to), channels:s(r.channels)}; });
+      const ups = {}; Object.keys(latest).forEach(k => { const u = latest[k]; ups[k] = {file:s(u.source_file), from:day(u.period_from), to:day(u.period_to), pulled:day(u.date_pulled), rows:n(u.row_count), channels:s(u.channels), at:s(u.uploaded_at)}; });
+      gpData = {uploads:ups, sales, gp, levels, asp};
+    }
+
+    return {categories, products, changes, docs:{"internal/main":gpData,"settings/main":settings, "retail/main":retail, "reference/main":reference}};
   }
   const snapOf = list => ({docs: list.map(d => ({id: d.id, data: () => clone(d.data)})), empty: !list.length, size: list.length, metadata: {fromCache: false}});
 
