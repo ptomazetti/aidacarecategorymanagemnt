@@ -551,6 +551,19 @@ end $$;
 revoke all on function public.only_team_signups() from public, anon, authenticated;
 drop trigger if exists only_team_signups on auth.users;
 create trigger only_team_signups before insert on auth.users for each row execute function public.only_team_signups();
+-- Also when a login's email is changed, and a login with no email (for example by phone) is refused (27 Nov 2026).
+create or replace function public.only_team_signups()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.email is null or not exists (select 1 from public.members m where lower(m.email) = lower(new.email)) then
+    raise exception 'This email is not on the team list.';
+  end if;
+  return new;
+end $$;
+revoke all on function public.only_team_signups() from public, anon, authenticated;
+drop trigger if exists only_team_email_change on auth.users;
+create trigger only_team_email_change before update of email on auth.users
+  for each row when (new.email is distinct from old.email) execute function public.only_team_signups();
 
 -- ---------- why people buy ----------
 -- One row per reason per product (reason_no 1 to 3, ranked by the need of whoever approves the purchase).
