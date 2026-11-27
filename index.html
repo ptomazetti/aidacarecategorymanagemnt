@@ -643,6 +643,8 @@ h1{font-weight:800}
 .pback{display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:var(--r);background:none;color:var(--ink);cursor:pointer}
 .pback:hover{background:var(--sunk)}
 .pback[hidden]{display:none}
+.srchbtn{display:none}
+@media (max-width:1023px){ .srchbtn{display:grid} }
 .top .gsearch input{border:1px solid var(--field);background:var(--surface);color:var(--ink)}
 .acct{gap:8px}
 .acct svg{flex:none}
@@ -701,7 +703,12 @@ h1{font-weight:800}
   .top{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:6px 8px;padding:8px 12px 10px;padding-top:max(8px,env(safe-area-inset-top))}
   .top .pback[hidden] + .ptitle{padding-left:6px}
   .top .gsearch{grid-column:1/-1;max-width:none;flex:none}
-  .top .acct{grid-column:3;grid-row:1;min-height:44px;padding:0 12px}
+  .top{grid-template-columns:auto minmax(0,1fr) auto auto}
+  .top .srchbtn{grid-column:3;grid-row:1}
+  .top .acct{grid-column:4;grid-row:1;min-height:44px;padding:0 12px}
+  .top .gsearch{display:none}
+  .top.srch-open .gsearch{display:block}
+  .top.srch-open .srchbtn{background:var(--sunk);color:var(--accent)}
   .top .acct .lt{display:none}
   .ph h1{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;height:calc(var(--tab-h) + env(safe-area-inset-bottom));padding:0 4px env(safe-area-inset-bottom);background:var(--surface);border-top:1px solid var(--line);z-index:22}
@@ -833,6 +840,7 @@ details.dfold > summary .chev{transition:transform .15s ease;font-size:20px}
 <header class="top" id="top">
   <button type="button" class="pback" id="pback" data-back="1" aria-label="Back" hidden><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
   <p class="ptitle" id="ptitle" aria-hidden="true">Category Pricing Board</p>
+  <button type="button" class="pback srchbtn" id="srchBtn" aria-label="Search products or websites" aria-expanded="false" aria-controls="gq"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
   <div class="gsearch" role="search">
     <label for="gq" class="sr">Search all products</label>
     <input id="gq" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-label="Search products or websites" placeholder="Search products or websites" autocomplete="off" aria-controls="gres">
@@ -1193,6 +1201,8 @@ function renderNav(r){
   $("#pback").hidden = r.v==="home";
   $("#pback").setAttribute("aria-label", "Back");
 }
+/* Phone: search sits behind a magnifier in the header. */
+function setSearch(open){ const t=$("#top"); t.classList.toggle("srch-open", open); $("#srchBtn").setAttribute("aria-expanded", String(open)); if(open){ $("#gq").focus(); } else { const q=$("#gq"); if(q && !q.value){ try{ hideGres(false); }catch(_){} } $("#srchBtn").focus(); } }
 function setSheet(open){ S.csOpen = !!open; renderNav(route()); if(open){ const a=$("#csheet a[aria-current]")||$("#csheet a"); if(a) a.focus(); } else { const b=$("[data-tabcats]"); if(b) b.focus(); } }
 function render(){
   if(!S.ready) return;
@@ -1201,7 +1211,7 @@ function render(){
   const r = route();
   const prevView = lastView;
   lastView = r.v+"|"+(r.cat||r.grp||r.mgr||"");
-  if(prevView!==lastView){ const a=$("#app"); a.classList.remove("enter"); void a.offsetWidth; a.classList.add("enter"); if(S.csOpen) S.csOpen=false; }
+  if(prevView!==lastView){ const tp=$("#top"); if(tp && tp.classList.contains("srch-open") && !($("#gq").value||"").trim()){ tp.classList.remove("srch-open"); $("#srchBtn").setAttribute("aria-expanded","false"); } const a=$("#app"); a.classList.remove("enter"); void a.offsetWidth; a.classList.add("enter"); if(S.csOpen) S.csOpen=false; }
   trackPage(r);
   if(r.v==="cat" && S.lastCat!==r.cat){ S.q=""; S.f="all"; S.brand=null; S.ours=null; S.need=null; S.tiers=new Set(); S.kind=null; S.act=null; S.lastCat=r.cat; }
   renderNav(r);
@@ -2728,6 +2738,7 @@ document.addEventListener("click", e=>{
   const t = e.target;
   const hit = sel => t.closest(sel);
   const jb = hit("[data-jump]"); if(jb){ const sec=document.getElementById(jb.dataset.jump); if(sec){ if(sec.tagName==="DETAILS" && !sec.open){ sec.open = true; S.fold = S.fold || {}; S.fold[sec.id] = true; } const rm = matchMedia("(prefers-reduced-motion: reduce)").matches; sec.scrollIntoView({behavior: rm?"auto":"smooth", block:"start"}); const h=sec.querySelector("h2,h3"); if(h){ h.setAttribute("tabindex","-1"); h.focus({preventScroll:true}); } } return; }
+  if(hit("#srchBtn")){ setSearch(!$("#top").classList.contains("srch-open")); return; }
   if(hit("[data-tabcats]")){ setSheet(!S.csOpen); return; }
   if(hit("[data-csx]") || hit("#csbg")){ setSheet(false); return; }
   if(hit("#csheet a")){ S.csOpen = false; $("#csheet").hidden = true; $("#csbg").hidden = true; }
@@ -2836,6 +2847,7 @@ document.addEventListener("keydown", e=>{
   }
   if(e.key==="Escape"){
     if(S.csOpen){ setSheet(false); return; }
+    if($("#top").classList.contains("srch-open") && $("#gres").hidden && isPhone()){ setSearch(false); return; }
     if($("#ov").classList.contains("open")){ closeEditor(); return; }
     if($("#ovSites").classList.contains("open")){ $("#ovSites").classList.remove("open"); return; }
     if(!$("#gres").hidden){ hideGres(false); $("#gq").focus(); return; }
