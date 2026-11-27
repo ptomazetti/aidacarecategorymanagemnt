@@ -5,7 +5,7 @@
    Public view, no login: products, LIST, specs, and every section switched "Visible to sales" (sections table).
    Team view, signed in with an email in members: everything, including cost, margin, sales and our net prices to
    retailers, which are always team only. Signed out, team-only tables and switched-off sections are never requested.
-   Only Paula (role admin) changes prices; the team switches sections. */
+   Only Paula (role admin) changes prices and switches sections. */
 (function(){
   "use strict";
   const CFG = window.CPB_CONFIG || {};
@@ -281,11 +281,11 @@
     later();
   }
 
-  /* The team switches sections on or off for sales (save_sections checks the login). */
+  /* Only Paula (admin) switches sections on or off for sales (save_sections checks the login). */
   async function saveSections(items){
-    if(!team) throw mkErr("invalid_argument", "Sign in with a team email to change what sales see.");
+    if(!team || !admin) throw mkErr("invalid_argument", "Only Paula can change what sales see.");
     const r = await sb.rpc("save_sections", {s: {items}});
-    if(r.error){ const denied = r.error.code === "42501" || /permission|only the team/i.test(r.error.message || ""); throw mkErr(denied ? "invalid_argument" : "unavailable", r.error.message); }
+    if(r.error){ const denied = r.error.code === "42501" || /permission|only paula/i.test(r.error.message || ""); throw mkErr(denied ? "invalid_argument" : "unavailable", r.error.message); }
     later();
   }
 

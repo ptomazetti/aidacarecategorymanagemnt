@@ -13,7 +13,7 @@
 --     review: product_reviews, product_review_competitors, category_reviews (off)
 --   Always team only, no switch: product_costs, product_sales, retailer_sales_info, retailer_codes,
 --     retailer_net_prices, change_history, members.
---   Only Paula (role admin) changes the board; the team switches sections. Every change is copied to change_history.
+--   Only Paula (role admin) changes the board and switches sections. Every change is copied to change_history.
 -- Prices are compared GST-free, as they are. No GST is added anywhere.
 
 -- ---------- team list ----------
@@ -749,12 +749,12 @@ drop policy if exists sections_read on public.sections;
 create policy sections_read on public.sections for select to anon, authenticated using (true);
 grant select on public.sections to anon, authenticated;
 
--- The team switches sections on or off, through save_sections only.
+-- Only Paula (admin) switches sections on or off, through save_sections only (Paula, 27 Nov 2026).
 create or replace function public.save_sections(s jsonb)
 returns void language plpgsql security definer set search_path = public as $$
 declare x jsonb;
 begin
-  if not public.is_team() then raise exception 'Only the team can change what sales see.' using errcode = '42501'; end if;
+  if not public.is_admin() then raise exception 'Only Paula can change what sales see.' using errcode = '42501'; end if;
   for x in select * from jsonb_array_elements(coalesce(s->'items', '[]'::jsonb)) loop
     update public.sections set visible_to_sales = (x->>'visible')::boolean, updated_at = now(), updated_by = coalesce(auth.jwt() ->> 'email', '')
     where section_id = x->>'id' and visible_to_sales is distinct from (x->>'visible')::boolean;

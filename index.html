@@ -596,7 +596,7 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
 <div class="overlay" id="ovSites" role="dialog" aria-modal="true" aria-labelledby="sitesTitle">
   <div class="sheet" style="width:min(560px,100%)">
     <div class="sec"><h3>Visible to sales</h3>
-      <p class="small" style="margin-top:4px">People who are not signed in see only the ticked sections. Products, specs and our LIST always show. Cost, margin, sales and our net prices to retailers are always team only. A tick saves straight away.</p>
+      <p class="small" style="margin-top:4px">People who are not signed in see only the ticked sections. Products, specs and our LIST always show. Cost, margin, sales and our net prices to retailers are always team only. Only Paula changes these. A tick saves straight away.</p>
       <div id="visForm" style="display:grid;gap:8px;margin-top:10px"></div><span class="small" id="visMsg" aria-live="polite"></span>
     </div>
     <div class="sec"><h3 id="sitesTitle">Main competitors and settings</h3>
@@ -1965,7 +1965,7 @@ function openSites(){
   if(S.team && !S.canWrite) $("#sitesMsg").textContent = "Only Paula changes brands and settings";
   document.querySelectorAll("#sitesForm input, #bandIn, #invU, #invG").forEach(x=>{ x.readOnly = !S.canWrite; });
   $("#sitesCancel").textContent = S.canWrite ? "Cancel" : "Close";
-  $("#visForm").innerHTML = SECTIONS.length ? SECTIONS.map(x=>`<label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" data-sec="${esc(x.id)}" ${x.visible?"checked":""} ${S.team?"":"disabled"} style="margin-top:3px"><span><b>${esc(x.name)}</b>${x.desc?`<span class="small" style="display:block">${esc(x.desc)}</span>`:""}</span></label>`).join("") : `<p class="small">Sections could not be loaded.</p>`;
+  $("#visForm").innerHTML = SECTIONS.length ? SECTIONS.map(x=>`<label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" data-sec="${esc(x.id)}" ${x.visible?"checked":""} ${S.canWrite?"":"disabled"} style="margin-top:3px"><span><b>${esc(x.name)}</b>${x.desc?`<span class="small" style="display:block">${esc(x.desc)}</span>`:""}</span></label>`).join("") : `<p class="small">Sections could not be loaded.</p>`;
   $("#visMsg").textContent = "";
   $("#ovSites").classList.add("open");
 }
@@ -2095,11 +2095,11 @@ function setState(v){ S.state = STATES.includes(v) ? v : null; try{ localStorage
 document.addEventListener("change", e=>{ if(e.target && e.target.id==="stSel") setState(e.target.value); });
 /* Visible to sales switches save straight away. */
 document.addEventListener("change", async e=>{
-  const el = e.target; if(!el || !el.dataset || !el.dataset.sec || !S.team) return;
+  const el = e.target; if(!el || !el.dataset || !el.dataset.sec || !S.canWrite) return;
   const m = $("#visMsg"); el.disabled = true; if(m) m.textContent = "Saving…";
   try{ await CPB.saveSections([{id:el.dataset.sec, visible:el.checked}]); const x = SECTIONS.find(y=>y.id===el.dataset.sec); if(x) x.visible = el.checked;
     if(m) m.textContent = (x ? x.name : "Section")+(el.checked ? " is now visible to sales." : " is now team only."); }
-  catch(err){ el.checked = !el.checked; if(m) m.textContent = (err && err.code==="invalid_argument") ? "Not saved: sign in with a team email." : "Not saved, check the connection and try again."; }
+  catch(err){ el.checked = !el.checked; if(m) m.textContent = (err && err.code==="invalid_argument") ? "Not saved: only Paula changes what sales see." : "Not saved, check the connection and try again."; }
   finally{ el.disabled = false; }
 });
 document.addEventListener("input", e=>{
