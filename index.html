@@ -867,6 +867,7 @@ function route(){
   if(h==="slots") return {v:"slots"};
   if(h==="states") return {v:"states"};
   if(h==="discontinued") return {v:"discontinued"};
+  if(h==="coverage") return {v:"coverage"};
   const dt = /^detail\/(.+)$/.exec(h);
   if(dt) return {v:"detail", dpid:dt[1]};
   const mg = /^mgr\/([a-z]+)(?:\/p\/(.+))?$/.exec(h);
@@ -885,7 +886,7 @@ const pageStack = [];
 function pageKey(r){ return r.v==="detail" ? "detail/"+r.dpid : r.v==="cat" ? "cat/"+r.cat : r.v==="grp" ? "grp/"+r.grp : r.v==="mgr" ? "mgr/"+r.mgr : r.v; }
 function trackPage(r){ const k=pageKey(r); if(pageStack[pageStack.length-1]===k) return; if(pageStack[pageStack.length-2]===k) pageStack.pop(); else pageStack.push(k); }
 function backTarget(){ if(pageStack.length>1) return pageStack[pageStack.length-2]; const k=pageStack[0]||"", g=k.startsWith("cat/")?grpOfCat(k.slice(4)):null; return g ? "grp/"+g.id : "home"; }
-function backBtn(){ const t=backTarget(), c=t.startsWith("cat/")?catOf(t.slice(4)):null, g=t.startsWith("grp/")?grpOf(t.slice(4)):null; const lbl = t.startsWith("detail/")?"Price detail":g?g.name:t==="home"?"Home":t==="table"?"Summary":t==="report"?"Report":t==="summary"?"Decisions":t==="slots"?"GBB":t==="discontinued"?"Discontinued":t.startsWith("mgr/")&&mgrOf(t.slice(4))?mgrOf(t.slice(4)).name:(c?c.name:"Back"); return `<button type="button" class="back" data-back="1"><span aria-hidden="true">←</span> Back to ${esc(lbl)}</button>`; }
+function backBtn(){ const t=backTarget(), c=t.startsWith("cat/")?catOf(t.slice(4)):null, g=t.startsWith("grp/")?grpOf(t.slice(4)):null; const lbl = t.startsWith("detail/")?"Price detail":t==="coverage"?"Coverage":g?g.name:t==="home"?"Home":t==="table"?"Summary":t==="report"?"Report":t==="summary"?"Decisions":t==="slots"?"GBB":t==="discontinued"?"Discontinued":t.startsWith("mgr/")&&mgrOf(t.slice(4))?mgrOf(t.slice(4)).name:(c?c.name:"Back"); return `<button type="button" class="back" data-back="1"><span aria-hidden="true">←</span> Back to ${esc(lbl)}</button>`; }
 function pLink(view, p){ return view==="cat" ? `#cat/${esc(p.cat)}/${esc(p.id)}` : `#${view}/p/${esc(p.id)}`; }
 
 /* ---------- render ---------- */
@@ -918,6 +919,7 @@ function render(){
   else if(r.v==="states") $("#app").innerHTML = renderStates();
   else if(r.v==="discontinued") $("#app").innerHTML = renderDisc();
   else if(r.v==="detail") $("#app").innerHTML = renderDetail(r.dpid);
+  else if(r.v==="coverage") $("#app").innerHTML = renderCoverage();
   if(S.state && r.v!=="states") $("#app").insertAdjacentHTML("afterbegin", stBanner());
   if(S.authNote) $("#app").insertAdjacentHTML("afterbegin", `<div class="stbar" role="status">${esc(S.authNote)}</div>`);
   const ss = $("#stSel"); if(ss && ss.value!==(S.state||"")) ss.value = S.state||"";
@@ -1047,7 +1049,7 @@ function renderHome(){
   return `<h1 class="sr">Category Pricing Board</h1>${S.canWrite?"":`<p class="stbar" role="status">View only. Paula approves every change.</p>`}
   <section class="hsec" aria-labelledby="mgrH"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 id="mgrH">By category manager</h2><span class="legend"><i class="above"></i>Above <i class="inline"></i>In line <i class="below"></i>Below <i class="none"></i>No market price</span></div><div class="mgrs">${mgrs}</div></section>
   ${gapHtml}
-  ${S.team?`<p class="foot"><button type="button" class="linkbtn" id="editSites">Main competitors and settings</button></p>`:""}`;
+  ${S.team?`<p class="foot"><a href="#coverage">Coverage</a> · <button type="button" class="linkbtn" id="editSites">Main competitors and settings</button></p>`:""}`;
 }
 function renderMgr(id){
   const m = mgrOf(id), cats = mgrCats(id), view = "mgr/"+id;
@@ -1608,6 +1610,88 @@ function renderDetail(pid){
   return head + `<div style="display:flex;flex-direction:column;gap:18px">${tiles}<section style="display:flex;flex-direction:column;gap:8px" aria-labelledby="stH"><h2 id="stH">Latest check by state</h2>${table}</section>${hist}</div>`;
 }
 document.addEventListener("click", e=>{ const el = e.target.closest && e.target.closest("[data-detail]"); if(el){ e.preventDefault(); go("detail/"+el.dataset.detail); } });
+/* ---------- steps 4 and 5: coverage tracker and our internal prices (David Owen's steps, Paula 27 Nov 2026) ----------
+   Team only. Data from Paula's exports: Cadence sales by SKU, GP item prices, GP price levels, average sell price.
+   SKUs roll up to the product families on the board through the item codes (product_codes and product_sizes). */
+function expandCodes(txt){
+  const out = [];
+  String(txt||"").split(/[,;\n]+/).map(x=>x.trim()).filter(Boolean).forEach(part=>{
+    const m = /^([A-Za-z]*)(\d+)\s+to\s+([A-Za-z]*)(\d+)$/i.exec(part);
+    if(m && m[1].toUpperCase()===m[3].toUpperCase() && m[2].length===m[4].length && +m[4] >= +m[2] && +m[4] - +m[2] <= 300){
+      for(let k=+m[2]; k<=+m[4]; k++) out.push(m[1].toUpperCase()+String(k).padStart(m[2].length,"0"));
+    } else out.push(part.toUpperCase());
+  });
+  return out;
+}
+function skusOf(p){
+  const set = new Set();
+  (p.codes||[]).forEach(c=>expandCodes(c).forEach(x=>set.add(x)));
+  ((p.sizes&&p.sizes.rows)||[]).forEach(r=>expandCodes(r[1]).forEach(x=>set.add(x)));
+  return [...set];
+}
+const INT = () => S.internal || null;
+/* The LIST that belongs to one SKU: its size or type row when the product has LIST by size or type, else the product LIST. */
+function skuList(p, sku){ const r = ((p.sizes&&p.sizes.rows)||[]).find(x=>expandCodes(x[1]).includes(sku)); return r && r[2]!=null ? num(r[2]) : num(p.price.list); }
+function salesOf(p){ const d = INT(); if(!d) return null; let rev = 0, mar = 0, units = 0, hit = 0;
+  skusOf(p).forEach(k=>{ const r = d.sales[k]; if(r){ rev += r.revenue; mar += r.margin; units += r.units; hit++; } });
+  return hit ? {revenue:rev, margin:mar, units, skus:hit} : {revenue:0, margin:0, units:0, skus:0}; }
+const pctOf = (a, b) => b ? a/b*100 : null;
+const dpct = (comp, ours) => comp==null || ours==null || !ours ? "n/a" : `${comp-ours>=0?"+":"-"}${money(Math.abs(comp-ours))} (${pct(gapOf(comp, ours))})`;
+function uploadNote(ds){ const u = INT() && INT().uploads[ds]; if(!u) return `${esc(ds)}: not uploaded yet`;
+  return `${esc(ds)}: ${u.from&&u.to?esc(fmtDate(u.from))+" to "+esc(fmtDate(u.to))+", ":""}${u.pulled?"pulled "+esc(fmtDate(u.pulled))+", ":""}uploaded ${esc(fmtDate((u.at||"").slice(0,10)))}${u.channels?", channels: "+esc(u.channels):""}`; }
+/* Product page, team only: our cost, levels and average sell price per SKU, and each competitor against LIST, A and ASP. */
+function internalBox(p){
+  if(!S.team || isLeave(p)) return "";
+  const d = INT();
+  const head = `<div class="row" style="justify-content:space-between;align-items:baseline"><h3>Our internal prices</h3><span class="small">Team only</span></div>`;
+  if(!d) return `<div class="szbox">${head}<p class="small" style="margin:0">Waiting for the GP reports (item price list, price levels A, B, C, D and P1) and the average sell price report.</p></div>`;
+  const skus = skusOf(p).filter(k=>d.gp[k] || d.levels[k] || d.asp[k]);
+  if(!skus.length) return `<div class="szbox">${head}<p class="small" style="margin:0">None of this product's item codes (${esc(skusOf(p).join(", ")||"none on file")}) are in the GP or average sell price data.</p></div>`;
+  const cell = v => v==null ? `<span class="small">n/a</span>` : money(v);
+  const rows = skus.map(k=>{ const g = d.gp[k]||{}, l = d.levels[k]||{}, a = d.asp[k]||{};
+    return `<tr><th scope="row">${esc(k)}${g.desc?`<span class="small">${esc(g.desc)}</span>`:""}</th><td class="num">${cell(g.cost)}</td><td class="num">${cell(g.landed)}</td><td class="num">${cell(g.list)}</td>${["A","B","C","D","P1"].map(x=>`<td class="num">${cell(l[x])}</td>`).join("")}<td class="num">${cell(a.price)}${a.units!=null?`<span class="small">${int(a.units)} units</span>`:""}</td></tr>`; }).join("");
+  const ref = skus.find(k=>(d.levels[k]||{}).A!=null) || skus[0], A = (d.levels[ref]||{}).A ?? null, ASP = (d.asp[ref]||{}).price ?? null, L = skuList(p, ref);
+  const comps = compsOf(p).map(c=>{ const v = c.sites.map(x=>num(x.p)).filter(x=>x!=null); return v.length ? {name:c.name, avg:v.reduce((a,b)=>a+b,0)/v.length} : null; }).filter(Boolean);
+  const cmp = comps.length ? `<div class="sumwrap"><table class="szt"><thead><tr><th scope="col">Competitor</th><th scope="col" class="num">Price</th><th scope="col" class="num">Vs LIST ${esc(L!=null?money0(L):"")}</th><th scope="col" class="num">Vs A ${esc(A!=null?money0(A):"")}</th><th scope="col" class="num">Vs avg sell ${esc(ASP!=null?money0(ASP):"")}</th></tr></thead><tbody>
+      ${comps.map(c=>`<tr><th scope="row">${esc(c.name)}</th><td class="num">${money(c.avg)}</td><td class="num">${dpct(c.avg, L)}</td><td class="num">${dpct(c.avg, A)}</td><td class="num">${dpct(c.avg, ASP)}</td></tr>`).join("")}</tbody></table></div>
+      <p class="small" style="margin:0">LIST, A price and average sell price for ${esc(ref)}. Competitor prices are the average of their websites, all sizes and types. A plus figure means the competitor is dearer than us.</p>` : `<p class="small" style="margin:0">No competitor prices to compare.</p>`;
+  const warn = skus.filter(k=>{ const g = (d.gp[k]||{}).list, l = skuList(p, k); return g!=null && l!=null && Math.abs(g - l) > 0.5; })
+    .map(k=>`<p class="small" style="margin:0;color:#B3261E">GP list for ${esc(k)} is ${money(d.gp[k].list)}; the board LIST for it is ${money(skuList(p, k))}.</p>`).join("");
+  return `<div class="szbox">${head}<div class="sumwrap"><table class="szt"><thead><tr><th scope="col">Item</th><th scope="col" class="num">Cost</th><th scope="col" class="num">Landed</th><th scope="col" class="num">GP list</th><th scope="col" class="num">A</th><th scope="col" class="num">B</th><th scope="col" class="num">C</th><th scope="col" class="num">D</th><th scope="col" class="num">P1</th><th scope="col" class="num">Avg sell</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${warn}${cmp}<p class="small" style="margin:0">${uploadNote("GP item prices")}. ${uploadNote("GP price levels")}. ${uploadNote("Average sell price")}.</p></div>`;
+}
+/* Coverage tracker: how much of each category is confirmed (both review stages), by revenue and margin. */
+function renderCoverage(){
+  const head = `<div class="ph"><div>${backBtn()}<h1>Coverage</h1><p class="sub">How much of each category is checked. A product counts as confirmed when the category manager review is done and David or Luke agree. Target: 70% of revenue and margin.</p></div></div>`;
+  if(!S.team) return head + `<p class="msg">Coverage is for the team. Sign in with a team email.</p>`;
+  const d = INT(), hasSales = !!(d && d.uploads["Cadence sales by SKU"]);
+  const bar = (v, lbl) => `<div style="display:flex;flex-direction:column;gap:2px"><span class="small">${lbl}: ${v==null?"n/a":v.toFixed(0)+"%"}</span><div style="position:relative;height:10px;border-radius:5px;background:var(--line2)"><div style="height:100%;width:${Math.min(100, Math.max(0, v||0)).toFixed(1)}%;border-radius:5px;background:${v!=null&&v>=70?"var(--dkgreen)":"var(--teal)"}"></div><span title="70% target" style="position:absolute;left:70%;top:-3px;bottom:-3px;width:2px;background:var(--coal)"></span></div></div>`;
+  const catRows = c => {
+    const ps = prodsIn(c.id).filter(p=>!isLeave(p)), conf = ps.filter(crConfirmed);
+    const withS = ps.map(p=>({p, s:salesOf(p)})).sort((a,b)=>((b.s&&b.s.revenue)||0)-((a.s&&a.s.revenue)||0));
+    const rev = withS.reduce((a,x)=>a+((x.s&&x.s.revenue)||0),0), mar = withS.reduce((a,x)=>a+((x.s&&x.s.margin)||0),0);
+    const crev = withS.filter(x=>crConfirmed(x.p)).reduce((a,x)=>a+((x.s&&x.s.revenue)||0),0), cmar = withS.filter(x=>crConfirmed(x.p)).reduce((a,x)=>a+((x.s&&x.s.margin)||0),0);
+    const top = Math.max(1, Math.ceil(withS.length/4));
+    return `<details class="addc"><summary><b>${esc(c.name)}</b>&nbsp; <span class="small">${ps.length} on the board, ${conf.length} confirmed, ${ps.length-conf.length} open${hasSales?`, ${pctOf(crev,rev)==null?"n/a":pctOf(crev,rev).toFixed(0)+"%"} of revenue covered`:""}</span></summary>
+      ${hasSales ? `<div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin:8px 0">${bar(pctOf(crev,rev),"Revenue covered")}${bar(pctOf(cmar,mar),"Margin covered")}</div>` : ""}
+      <div class="sumwrap"><table class="szt"><thead><tr><th scope="col">Product</th><th scope="col">Status</th>${hasSales?`<th scope="col" class="num">Revenue</th><th scope="col" class="num">Margin</th>`:""}</tr></thead><tbody>
+      ${withS.map((x,ix)=>{ const st = crOf(x.p).status||{}; const lbl = crConfirmed(x.p) ? `<span class="tag sst" style="margin:0">Confirmed</span>` : st.done ? `<span class="tag sno" style="margin:0">Waiting for David or Luke</span>` : `<span class="tag sno" style="margin:0">Open</span>`;
+        return `<tr><th scope="row"><a href="#cat/${esc(x.p.cat)}/${esc(x.p.id)}" data-pid="${esc(x.p.id)}">${esc(x.p.name)}</a>${hasSales && ix<top && x.s && x.s.revenue>0 && !crConfirmed(x.p)?`<span class="small" style="color:#B3261E">Top 25% by revenue: review first</span>`:""}</th><td>${lbl}</td>${hasSales?`<td class="num">${x.s&&x.s.skus?money0(x.s.revenue):`<span class="small">No sales matched</span>`}</td><td class="num">${x.s&&x.s.skus?money0(x.s.margin):""}</td>`:""}</tr>`; }).join("")}</tbody></table></div></details>`;
+  };
+  const mgrs = MGRS.map(m=>{ const cats = S.cats.filter(c=>c.type!=="list" && catMgr(c)===m.id && prodsIn(c.id).some(p=>!isLeave(p)));
+    if(!cats.length) return "";
+    const ps = cats.flatMap(c=>prodsIn(c.id).filter(p=>!isLeave(p))), conf = ps.filter(crConfirmed).length;
+    return `<section style="display:flex;flex-direction:column;gap:8px" aria-labelledby="cv-${esc(m.id)}"><h2 id="cv-${esc(m.id)}">${esc(m.name)} <span class="small">${ps.length} products, ${conf} confirmed, ${ps.length-conf} open</span></h2>${cats.map(catRows).join("")}</section>`; }).join("");
+  let missing = "";
+  if(hasSales){
+    const known = new Set([...S.prods.values()].flatMap(skusOf));
+    const miss = Object.values(d.sales).filter(r=>!known.has(r.sku) && r.revenue>0).sort((a,b)=>b.revenue-a.revenue);
+    const gpMiss = Object.values(d.gp||{}).filter(r=>!known.has(r.sku) && !d.sales[r.sku]).length;
+    missing = `<section style="display:flex;flex-direction:column;gap:8px" aria-labelledby="mpH"><h2 id="mpH">Selling but not on the board (${miss.length} SKUs)</h2><p class="small" style="margin:0">Cadence SKUs whose item code is not on any product on the board, by revenue. They are not added automatically.${gpMiss?` ${gpMiss} more items are in the GP item list with no sales.`:""}</p>
+      ${miss.length ? `<div class="sumwrap"><table class="szt"><thead><tr><th scope="col">SKU</th><th scope="col">Description</th><th scope="col">Cadence category</th><th scope="col" class="num">Revenue</th><th scope="col" class="num">Margin</th></tr></thead><tbody>${miss.slice(0,200).map(r=>`<tr><th scope="row">${esc(r.sku)}</th><td>${esc(r.desc)}</td><td>${esc(r.cat)}</td><td class="num">${money0(r.revenue)}</td><td class="num">${money0(r.margin)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="msg">Every SKU with sales is on the board.</p>`}</section>`;
+  }
+  return head + `<div style="display:flex;flex-direction:column;gap:18px">${hasSales ? `<p class="small" style="margin:0">${uploadNote("Cadence sales by SKU")}.</p>` : `<p class="msg">Waiting for the Cadence export (revenue and margin by SKU, 12 months). Until then this page counts confirmed and open products only.</p>`}${mgrs}${missing}</div>`;
+}
 function sizeBox(p, i){
   const sk = skuOf(p); if(!sk) return "";
   const pl = xs => xs.length ? xs.map(x=>`<span class="szp">${esc(x.comp)}, ${esc(x.site)} <b>${money(x.p)}</b></span>`).join("") : `<span class="small">None</span>`;
@@ -1677,6 +1761,7 @@ function detail(p){
       ${gmTile?`<div><span class="k">${gmTile[0]}</span><span class="v">${gmTile[1]}</span><span class="s">${gmTile[2]}</span></div>`:""}
     </div>
     ${actBox(p)}
+    ${internalBox(p)}
   </div><div class="dcol">
     ${isLeave(p) ? "" : changeBox(p)}
     ${ours}
@@ -1972,7 +2057,7 @@ function renderReport(){
 
   const chart = posChart(R, "report", true);
 
-  return `<div class="ph"><div>${backBtn()}<h1>Pricing position${d?", "+MON[+d[2]-1]+" "+d[1]:""}</h1></div><div class="row">${S.dl?`<button type="button" class="btn primary" id="dlReport">Export to Excel</button>`:`<button type="button" class="btn" id="copyReport">Copy for Excel</button>`}</div></div>
+  return `<div class="ph"><div>${backBtn()}<h1>Pricing position${d?", "+MON[+d[2]-1]+" "+d[1]:""}</h1></div><div class="row">${S.team?`<a class="btn" href="#coverage">Coverage</a>`:""}${S.dl?`<button type="button" class="btn primary" id="dlReport">Export to Excel</button>`:`<button type="button" class="btn" id="copyReport">Copy for Excel</button>`}</div></div>
   <p class="small" id="repMsg" aria-live="polite"></p>
   ${decisions}
   <details class="rsec"><summary><h2 id="ch">Position by category</h2><span class="small">Every product against the market</span><span class="chev" aria-hidden="true">›</span></summary>${chart}</details>
@@ -2430,6 +2515,7 @@ window.addEventListener("hashchange", ()=>{
   db.collection("products").onSnapshot(snap=>{ S.prods = new Map(snap.docs.map(d=>[d.id, norm(Object.assign({id:d.id}, d.data()))])); S.got.p=true; if(!snap.metadata.fromCache && S.got.c) clearTimeout(timer); render(); }, fail);
   db.doc("retail/main").onSnapshot(snap=>{ S.retail = snap.exists ? snap.data() : null; render(); }, ()=>{});
   db.collection("changes").onSnapshot(snap=>{ S.changes = snap.docs.flatMap(d=>{ const x=d.data()||{}; const date=x.date||d.id; return (Array.isArray(x.items)?x.items:[]).map(it=>Object.assign({date}, it)); }).sort((a,b)=>String(b.date).localeCompare(String(a.date))); render(); }, ()=>{});
+  db.doc("internal/main").onSnapshot(snap=>{ S.internal = snap.exists ? snap.data() : null; render(); }, ()=>{});
   db.doc("settings/main").onSnapshot(snap=>{ if(snap.exists){ const d=snap.data(); S.settings = { band: d.band ?? 5, investUnits: d.investUnits ?? 10, investGap: d.investGap ?? 30, listGst: gstSetting() }; } render(); }, ()=>{});
 })();
 })();
