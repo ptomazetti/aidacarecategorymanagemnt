@@ -2,9 +2,9 @@
 
 Repo ptomazetti/aidacarecategorymanagemnt. Front end on GitHub Pages, database in Supabase.
 
-Users: the category team (Paula, Josh, Anthony, Luke, David). There is no sales view (Paula, 27 Nov 2026).
+Users: the category team (Paula, Josh, Anthony, Luke, David). There is no sales view.
 
-Access for now, team review stage (Paula, 27 Nov 2026): anyone with the link can view, with no login. Editing needs a team sign-in, and edit buttons are hidden when not signed in. Every page has a noindex, nofollow robots tag. Team-only tables (cost, sales, margin, internal notes, reviews, online prices, retailer data, price changes) stay readable by the team only and are never requested for viewers.
+Until the site is fully approved (Paula, 27 Nov 2026): no login is needed to view it, and everyone with the link sees everything, cost and sales included. Only Paula signs in, to make changes. The login and Row Level Security rule below comes back once the site is approved.
 
 Follow these rules in every session.
 
@@ -27,7 +27,7 @@ Follow these rules in every session.
 
 ## Where things are
 
-- index.html: the whole site. Anyone can view; signed-in team members can edit. Edit it directly. It holds no product data.
+- index.html: the whole site. Edit it directly. It holds no product data. It carries a noindex, nofollow robots tag. Edit buttons show only to Paula when signed in.
 - Why people buy: tables why_people_buy, why_people_buy_comparison, open_checks and why_people_buy_progress, shown on each product page. Progress shows which products are Not started, Done or Skipped.
 - cpb-backend.js: reads the Supabase tables, builds the records the page uses, saves through save_product, save_category and save_settings, and runs the sign-in dialog.
 - supabase/schema.sql: every table, the access rules and the save functions.
