@@ -1046,7 +1046,7 @@ function renderHome(){
   const gapHtml = `<section class="hsec" aria-labelledby="gapH"><div class="row" style="justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 16px"><h2 id="gapH">Biggest gaps by category</h2><span class="small">The product furthest from the market on each side. Click a category to see all its products.</span></div>
     <div class="gx"><div class="gg"><div class="gh gh0">Category</div><div class="gh b">Most below market</div><div class="gh a">Most above market</div>${gRows}</div></div>
     <p class="small">Our ${esc(LL("LIST"))} against the average online price of the competitors. Bars to the same scale. In line (within ${band()}%) is not shown${nChk?`, and the ${plural(nChk,"product")} marked Check comparison ${nChk===1?"is":"are"} left out`:""}.</p></section>`;
-  return `<h1 class="sr">Category Pricing Board</h1>${S.canWrite?"":`<p class="stbar" role="status">View only. Paula approves every change.</p>`}
+  return `<h1 class="sr">Category Pricing Board</h1>
   <section class="hsec" aria-labelledby="mgrH"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 id="mgrH">By category manager</h2><span class="legend"><i class="above"></i>Above <i class="inline"></i>In line <i class="below"></i>Below <i class="none"></i>No market price</span></div><div class="mgrs">${mgrs}</div></section>
   ${gapHtml}
   ${S.team?`<p class="foot"><a href="#coverage">Coverage</a> · <button type="button" class="linkbtn" id="editSites">Main competitors and settings</button></p>`:""}`;
