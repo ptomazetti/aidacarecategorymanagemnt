@@ -807,6 +807,17 @@ table.qt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
   .qt td:nth-child(3){grid-column:auto}
 }
 .cbox .cr.na a{color:var(--teal-ink)}
+/* round 5: folded sections on the phone, Top 5 names wrap */
+details.dfold > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:0 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);font:700 15px var(--display);color:var(--ink);box-shadow:var(--shadow)}
+details.dfold > summary::-webkit-details-marker{display:none}
+details.dfold[open] > summary{margin-bottom:10px}
+details.dfold[open] > summary .chev{transform:rotate(90deg)}
+details.dfold > summary .chev{transition:transform .15s ease;font-size:20px}
+@media (min-width:1024px){ details.dfold > summary{display:none} }
+@media (max-width:1023px){
+  .qtop li{grid-template-columns:minmax(0,1fr) auto;row-gap:6px}
+  .qtop .qn{grid-column:1/-1;white-space:normal;overflow:visible}
+}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -1994,6 +2005,10 @@ function sizeBox(p, i){
     ${sk.cfg.note?`<p class="small" style="margin:0">${esc(sk.cfg.note)}</p>`:""}</div>`;
 }
 /* Product detail: jump menu to each section (design refresh, 27 Nov 2026). */
+/* On the phone, Competitor prices and History start closed (no forms inside, so nothing typed is lost). */
+const isPhone = () => matchMedia("(max-width:1023px)").matches;
+function foldWrap(id, label, html){ if(!html || !html.trim()) return ""; S.fold = S.fold || {}; const open = !isPhone() || !!S.fold[id];
+  return `<details id="${id}" class="dfold dsec" data-fold="${id}" ${open?"open":""}><summary><span>${esc(label)}</span><span class="chev" aria-hidden="true">›</span></summary>${html}</details>`; }
 const secWrap = (id, html) => html && html.trim() ? `<div id="${id}" class="dsec">${html}</div>` : "";
 function jumpNav(p){
   const lv = isLeave(p), has = f => { try{ const h=f(); return !!(h && h.trim()); }catch(_){ return false; } };
@@ -2059,10 +2074,10 @@ function detail(p){
     ${isLeave(p) ? "" : changeBox(p)}
     ${ours}
     ${sizeBox(p, i)}
-    ${vis("competitor_prices")?`<div id="sec-comps" style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between"><h3>Competitor prices${teamTag("competitor_prices")}</h3><span class="small">${dates?"Checked "+esc(dates):""}</span></div>${isLeave(p)?"":deliveredLine(p)}${lanes}${comps||`<p class="small">No competitors listed.</p>`}</div>`:""}
+    ${vis("competitor_prices")?foldWrap("sec-comps", "Competitor prices ("+compsOf(p).length+")", `<div style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between"><h3>Competitor prices${teamTag("competitor_prices")}</h3><span class="small">${dates?"Checked "+esc(dates):""}</span></div>${isLeave(p)?"":deliveredLine(p)}${lanes}${comps||`<p class="small">No competitors listed.</p>`}</div>`):""}
     ${secWrap("sec-why", isLeave(p) ? "" : wpbBox(p))}
     ${secWrap("sec-review", isLeave(p) ? "" : crBox(p))}
-    ${secWrap("sec-history", isLeave(p) ? "" : histBox(p))}
+    ${foldWrap("sec-history", "History", isLeave(p) ? "" : histBox(p))}
   </div></div>`;
 }
 
@@ -2321,10 +2336,15 @@ function xSheet(wb, name, title, aoa){
   if(firstHead){ ws.views = [{state:"frozen", ySplit:firstHead, showGridLines:false}]; }
   return ws;
 }
+let logoB64 = null;
+async function logoData(){ if(logoB64!==null) return logoB64; try{ const r = await fetch("img/aspire-logo-primary.png"); const b = new Uint8Array(await r.arrayBuffer()); let s=""; b.forEach(x=>s+=String.fromCharCode(x)); logoB64 = btoa(s); }catch(_){ logoB64 = ""; } return logoB64; }
 async function brandBook(sheets){
   const E = await loadExcel(), wb = new E.Workbook(); wb.creator = "Category Pricing Board"; wb.created = new Date();
+  const lg = await logoData(), logoId = lg ? wb.addImage({base64:lg, extension:"png"}) : null;
   const used = new Set();
-  sheets.forEach(sh=>{ let name = String(sh.name||"Sheet").replace(/[\[\]:*?\/\\]/g," ").slice(0,31), k=2; while(used.has(name)) name = name.slice(0,28)+" "+(k++); used.add(name); xSheet(wb, name, sh.title||sh.name, sh.aoa); });
+  sheets.forEach(sh=>{ let name = String(sh.name||"Sheet").replace(/[\[\]:*?\/\\]/g," ").slice(0,31), k=2; while(used.has(name)) name = name.slice(0,28)+" "+(k++); used.add(name); const ws = xSheet(wb, name, sh.title||sh.name, sh.aoa);
+    /* approved Aspire logo, top right, 110 x 32 px (brand minimum 85 px) */
+    if(logoId!=null){ let x = 0, col = 0; const target = Math.max(60, ws.columns.slice(0, 6).reduce((t,c)=>t+(c.width||10),0)*7 - 120); while(col < ws.columnCount && x + (ws.getColumn(col+1).width||10)*7 < target){ x += (ws.getColumn(col+1).width||10)*7; col++; } ws.addImage(logoId, {tl:{col: Math.max(col,1), row:0}, ext:{width:110, height:32}}); ws.getRow(1).height = 30; } });
   return wb.xlsx.writeBuffer();
 }
 const EXPORT_TITLES = {"products-vs-competitors":"Products vs competitors", "price-table":"Price table", "pricing-decisions":"Pricing decisions", "positioning-report":"Pricing position"};
@@ -2703,10 +2723,11 @@ async function saveReview(id){
   catch(e){ const b=document.querySelector(sel+" button[type=submit]"), m=document.querySelector(sel+" [data-rvmsg]"); if(b) b.disabled = false; if(m) m.textContent = (e&&e.code==="invalid_argument") ? "You can view this page but not change it." : "Not saved, try again."; }
 }
 document.addEventListener("submit", e=>{ const pr=e.target.closest && e.target.closest("[data-prv]"); if(pr){ e.preventDefault(); clearTimeout(PRV_T[pr.dataset.prv]); delete PRV_T[pr.dataset.prv]; saveProdReview(pr.dataset.prv); return; } const r=e.target.closest && e.target.closest("[data-rv]"); if(r){ e.preventDefault(); saveReview(r.dataset.rv); return; } const f=e.target.closest && e.target.closest("[data-qd]"); if(f){ e.preventDefault(); saveQuick(f.dataset.qd, false); } });
+document.addEventListener("toggle", e=>{ const d=e.target; if(d && d.dataset && d.dataset.fold){ S.fold = S.fold || {}; S.fold[d.dataset.fold] = d.open; } }, true);
 document.addEventListener("click", e=>{
   const t = e.target;
   const hit = sel => t.closest(sel);
-  const jb = hit("[data-jump]"); if(jb){ const sec=document.getElementById(jb.dataset.jump); if(sec){ const rm = matchMedia("(prefers-reduced-motion: reduce)").matches; sec.scrollIntoView({behavior: rm?"auto":"smooth", block:"start"}); const h=sec.querySelector("h2,h3"); if(h){ h.setAttribute("tabindex","-1"); h.focus({preventScroll:true}); } } return; }
+  const jb = hit("[data-jump]"); if(jb){ const sec=document.getElementById(jb.dataset.jump); if(sec){ if(sec.tagName==="DETAILS" && !sec.open){ sec.open = true; S.fold = S.fold || {}; S.fold[sec.id] = true; } const rm = matchMedia("(prefers-reduced-motion: reduce)").matches; sec.scrollIntoView({behavior: rm?"auto":"smooth", block:"start"}); const h=sec.querySelector("h2,h3"); if(h){ h.setAttribute("tabindex","-1"); h.focus({preventScroll:true}); } } return; }
   if(hit("[data-tabcats]")){ setSheet(!S.csOpen); return; }
   if(hit("[data-csx]") || hit("#csbg")){ setSheet(false); return; }
   if(hit("#csheet a")){ S.csOpen = false; $("#csheet").hidden = true; $("#csbg").hidden = true; }
