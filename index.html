@@ -478,7 +478,10 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
 .cbox .cr.cheap{background:#FDECEA} .cbox .cr.cheap a{color:#006b7e} .tag.lo{background:#B3261E;color:#fff} .tag.eq{background:var(--line2);color:var(--ink)} .tag.hi{background:var(--line2);color:var(--ink)} .olo{color:#B3261E;font-weight:600}
 .szbox{display:flex;flex-direction:column;gap:8px} .szt{width:100%;border-collapse:collapse;font-size:13px} .szt th,.szt td{padding:8px 10px;border-top:1px solid var(--line2);text-align:left;vertical-align:top}
 .szt thead th{border-top:0;font-size:12px;color:#5A6670;font-weight:600;background:var(--sunk)} .szt .num{text-align:right;white-space:nowrap} .szt th .small,.szt td .small{display:block;font-weight:400}
-.szt tr.szu{background:#EEF7F9} .szt td .small a{color:#006b7e} .wpb .szt th[scope="row"]{font-weight:600;color:var(--ink)} .wpb .wmm{display:none} @media (max-width:600px){.wpb .wm{display:none} .wpb .wmm{display:block;color:var(--ink)} .wpb .szt th,.wpb .szt td{padding:6px 6px}} .wpbck{display:flex;flex-direction:column;gap:4px;padding-top:6px;border-top:1px solid var(--line2)} .szt .gt.below{color:#006b7e} .szuse{display:block;font-size:11px;font-weight:700;color:#006b7e} .szp{display:block} .szp b{color:var(--ink)}
+.szt tr.szu{background:#EEF7F9} .szt td .small a{color:#006b7e} .wpb .szt th[scope="row"]{font-weight:600;color:var(--ink)} .wpb .wmm{display:none} @media (max-width:600px){.wpb .wm{display:none} .wpb .wmm{display:block;color:var(--ink)} .wpb .szt th,.wpb .szt td{padding:6px 6px}} .crl{display:flex;flex-direction:column;gap:6px;padding-top:8px;border-top:1px solid var(--line2)} .crs{display:flex;flex-direction:column;gap:4px;padding-left:12px;border-left:3px solid var(--line2)}
+.crbox input,.szbox [data-clrow] input,.wpbck input{min-height:34px;border:1px solid var(--field);border-radius:8px;padding:0 10px;font:13px var(--body);min-width:0}
+.crbox .qopt{min-height:32px;padding:0 12px;font-size:12px} .crbox .qopt[data-crv="Disagree"][aria-pressed="true"],.crbox .qopt[data-crfin="Change"][aria-pressed="true"]{background:#B3261E;border-color:#B3261E}
+.wpbck{display:flex;flex-direction:column;gap:4px;padding-top:6px;border-top:1px solid var(--line2)} .szt .gt.below{color:#006b7e} .szuse{display:block;font-size:11px;font-weight:700;color:#006b7e} .szp{display:block} .szp b{color:var(--ink)}
 .tag.szc{background:var(--line2);color:var(--ink)} .tag.szc.on{background:#E3F1F4;color:#005A6B}
 .lanes{display:flex;flex-direction:column;gap:2px;margin:0 0 6px} .lanes .lr{display:grid;grid-template-columns:150px minmax(0,1fr);align-items:center}
 .lanes .lname{display:flex;align-items:center;gap:6px;padding-right:8px;font-size:12px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .lanes .lname i{width:9px;height:9px;border-radius:50%;flex:none}
@@ -659,7 +662,8 @@ function checkedTxt(lc, hi){
 const fmtDate = d => { if(!d) return ""; const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d); return m ? (+m[3])+" "+MON[+m[2]-1]+" "+m[1] : d; };
 
 /* Competitor slots: 3, or 5 for Best tier products (David's review and Paula's answer, 27 Nov 2026). */
-const nSlots = p => (p.placements||[]).some(pl=>pl.tier==="Best") ? 5 : 3;
+/* Competitor slots: 3 to start, and as many as the team wants on any product (Paula, 27 Nov 2026). */
+const nSlots = p => 3;
 function norm(d){
   const p = Object.assign({}, d);
   p.spec = Array.isArray(p.spec)? p.spec : [];
@@ -1074,6 +1078,7 @@ function renderCat(cid){
   }
   html += priceKey(cat, list);
   html += `</section></div>`;
+  html += compListBox(cat);
   return html;
 }
 function priceKey(cat, list){
@@ -1144,8 +1149,8 @@ function renderDrawer(r){
     return;
   }
   const d = $("#drawer"), keepScroll = was===p.id ? d.scrollTop : 0;
-  const ae = document.activeElement, kf = was===p.id && ae && d.contains(ae) && ae.closest("[data-prv],[data-wpbf],[data-wpbcm]")
-    ? { scope: ae.closest("form.prv") ? "form.prv " : "", sel: ae.id ? "#"+ae.id : ae.dataset.prk ? `[data-prc="${ae.dataset.prc}"][data-prk="${ae.dataset.prk}"]` : ae.dataset.prn!=null ? `[data-prn="${ae.dataset.prn}"]` : ae.type==="submit" ? "button[type=submit]" : null, a: ae.selectionStart, b: ae.selectionEnd } : null;
+  const ae = document.activeElement, kf = was===p.id && ae && d.contains(ae) && ae.closest("[data-prv],[data-wpbf],[data-wpbcm],[data-crp]")
+    ? { scope: ae.closest("form.prv") ? "form.prv " : "", sel: ae.id ? "#"+ae.id : ae.dataset.prk ? `[data-prc="${ae.dataset.prc}"][data-prk="${ae.dataset.prk}"]` : ae.dataset.prn!=null ? `[data-prn="${ae.dataset.prn}"]` : ae.dataset.crin ? `[data-crin="${CSS.escape(ae.dataset.crin)}"][data-crf="${ae.dataset.crf}"]` : ae.dataset.cradd ? `[data-cradd="${ae.dataset.cradd}"]` : ae.type==="submit" ? "button[type=submit]" : null, a: ae.selectionStart, b: ae.selectionEnd } : null;
   d.innerHTML = detail(p);
   d.scrollTop = keepScroll;
   if(kf && kf.sel){ const n = d.querySelector(kf.scope+kf.sel); if(n){ n.focus({preventScroll:true}); if(kf.a!=null){ try{ n.setSelectionRange(kf.a, kf.b); }catch(_){} } } }
@@ -1363,6 +1368,178 @@ document.addEventListener("input", e=>{ const el = e.target; if(!el || !el.datas
   if(el.dataset.wpbk && S.wpbEd) S.wpbEd.d[el.dataset.wpbk] = el.value;
   if(el.dataset.wpbcm){ S.wpbCm = S.wpbCm || {}; S.wpbCm[el.dataset.wpbcm] = el.value; } });
 document.addEventListener("submit", e=>{ const f = e.target.closest && e.target.closest("[data-wpbf]"); if(f){ e.preventDefault(); wpbSaveForm(f.dataset.wpbf); } });
+/* ---------- competitor review, step 3 (David Owen's steps, Paula 27 Nov 2026) ----------
+   Each competitor line has separate checks: business, product and each website. A Disagree becomes a suggestion and
+   nothing changes the live data until Paula approves it. Stage 1: the category manager who owns the category.
+   Stage 2: David or Luke, Agree or Change. Confirmed when both are done. Every change goes to change_history. */
+const ROLE = () => (window.CPB && CPB.role && CPB.role()) || {team:false};
+const whoName = e => { const n = String(e||"").split("@")[0]; return n ? n.split(/[._-]/).filter(Boolean).map(w=>w[0].toUpperCase()+w.slice(1)).join(" ") : ""; };
+const crOwns = p => { const r = ROLE(); return !!(S.team && (r.admin || (r.manager_id && r.manager_id===catMgr(catOf(p.cat))))); };
+const crFinal = () => { const r = ROLE(); return !!(S.team && (r.admin || r.final_reviewer)); };
+const crOf = p => p.crev || {lines:[], status:null, sugs:[]};
+const crLine = (p, no, site) => crOf(p).lines.find(x=>x.no===no && x.site===site) || null;
+const crConfirmed = p => { const st = crOf(p).status; return !!(st && st.done && st.final==="Agree"); };
+const sugName = s => { const b = (s.business||"").trim(), pr = (s.product||"").trim(); if(!pr) return b; return b && !pr.toLowerCase().startsWith(b.toLowerCase()) ? b+" "+pr : pr; };
+function crStatus(p){
+  const st = crOf(p).status || {}, done = !!st.done;
+  const one = done ? `<span class="tag sst" style="margin:0">1. Category manager: done</span><span class="small">${esc(whoName(st.doneBy))}${st.doneAt?", "+esc(fmtDate(st.doneAt.slice(0,10))):""}</span>` : `<span class="tag sno" style="margin:0">1. Category manager: not done</span>`;
+  const two = st.final==="Agree" ? `<span class="tag sst" style="margin:0">2. David or Luke: agree</span>` : st.final==="Change" ? `<span class="tag lo" style="margin:0">2. David or Luke: change</span>` : `<span class="tag sno" style="margin:0">2. David or Luke: not done</span>`;
+  const by2 = st.final ? `<span class="small">${esc(whoName(st.finalBy))}${st.finalAt?", "+esc(fmtDate(st.finalAt.slice(0,10))):""}${st.finalNote?": "+esc(st.finalNote):""}</span>` : "";
+  return `<div class="row" style="gap:6px;align-items:center">${one}</div><div class="row" style="gap:6px;align-items:center">${two}${by2}</div>${crConfirmed(p)?`<div><span class="tag sst" style="margin:0">Confirmed</span></div>`:""}`;
+}
+const CR_BTN = (key, field, val, on, can) => `<button type="button" class="qopt" data-crk="${esc(key)}" data-crf="${field}" data-crv="${val}" aria-pressed="${on}" ${can?"":"disabled"}>${val}</button>`;
+function crSugNote(p, no, site){
+  const s = crOf(p).sugs.filter(x=>x.no===no && x.site===site && x.kind!=="Add competitor").sort((a,b)=>b.id-a.id)[0];
+  if(!s) return "";
+  return s.status==="Pending" ? `<span class="tag sno" style="margin:0">Waiting for Paula</span>` : s.status==="Approved" ? `<span class="tag sst" style="margin:0">Change approved${s.decidedAt?" "+esc(fmtDate(s.decidedAt.slice(0,10))):""}</span>` : `<span class="tag eq" style="margin:0">Change rejected${s.note?": "+esc(s.note):""}</span>`;
+}
+function crRowForm(key, isSite, d){
+  return `<div class="crfix" style="display:grid;gap:6px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+    <input data-crin="${esc(key)}" data-crf="cBusiness" aria-label="${isSite?"Correct website name":"Correct business"}" placeholder="${isSite?"Correct website name":"Correct business"}" value="${esc(d.cBusiness||"")}">
+    ${isSite?"":`<input data-crin="${esc(key)}" data-crf="cProduct" aria-label="Correct product name" placeholder="Correct product name" value="${esc(d.cProduct||"")}">`}
+    ${isSite?`<input data-crin="${esc(key)}" data-crf="cUrl" aria-label="Correct product page link" placeholder="https://" value="${esc(d.cUrl||"")}">`:""}
+    <input data-crin="${esc(key)}" data-crf="comment" aria-label="Comment" placeholder="Comment" value="${esc(d.comment||"")}">
+    <button type="button" class="btn" data-crsave="${esc(key)}">Save</button></div>`;
+}
+function crBox(p){
+  if(!vis("review")) return "";
+  const can = crOwns(p), cr = crOf(p), id = esc(p.id);
+  const comps = p.comps.map((c,i)=>({c, no:i+1})).filter(x=>x.c.name);
+  const draft = key => (S.crd && S.crd[key]) || null;
+  const lineHtml = ({c, no}) => {
+    const k0 = p.id+"|"+no+"|0", saved0 = crLine(p, no, 0) || {}, d0 = Object.assign({}, saved0, draft(k0)||{});
+    const dis0 = d0.business==="Disagree" || d0.product==="Disagree";
+    const ans = (v, lbl) => v ? `${lbl}: ${esc(v)}` : "";
+    const head = `<div class="crl"><div class="row" style="justify-content:space-between;gap:6px"><b style="color:var(--ink)">${esc(c.name)}</b>${crSugNote(p, no, 0)}</div>
+      ${can ? `<div class="row" style="gap:8px"><span class="small" style="min-width:64px">Business</span>${CR_BTN(k0,"business","Agree",d0.business==="Agree",true)}${CR_BTN(k0,"business","Disagree",d0.business==="Disagree",true)}</div>
+        <div class="row" style="gap:8px"><span class="small" style="min-width:64px">Product</span>${CR_BTN(k0,"product","Agree",d0.product==="Agree",true)}${CR_BTN(k0,"product","Disagree",d0.product==="Disagree",true)}</div>
+        ${dis0 ? crRowForm(k0, false, d0) : ""}`
+      : `<span class="small">${[ans(saved0.business,"Business"), ans(saved0.product,"Product")].filter(Boolean).join(" · ") || "Not reviewed yet"}${saved0.cBusiness||saved0.cProduct?" · Should be "+esc([saved0.cBusiness,saved0.cProduct].filter(Boolean).join(" ")):""}${saved0.comment?" · "+esc(saved0.comment):""}</span>`}`;
+    const sites = c.sites.map((x,si)=>({x, site:si+1})).filter(y=>y.x.site || y.x.url).map(({x, site})=>{
+      const k = p.id+"|"+no+"|"+site, sv = crLine(p, no, site) || {}, d = Object.assign({}, sv, draft(k)||{});
+      return `<div class="crs"><div class="row" style="justify-content:space-between;gap:6px"><span class="small" style="color:var(--ink)">Website: ${esc(x.site||"Not named")}${num(x.p)!=null?" "+money(num(x.p)):""}${safeUrl(x.url)?` <a href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener">Open page</a>`:""}</span>${crSugNote(p, no, site)}</div>
+        ${can ? `<div class="row" style="gap:8px">${CR_BTN(k,"website","Agree",d.website==="Agree",true)}${CR_BTN(k,"website","Disagree",d.website==="Disagree",true)}</div>${d.website==="Disagree" ? crRowForm(k, true, d) : ""}`
+          : `<span class="small">${sv.website?"Website: "+esc(sv.website):"Not reviewed yet"}${sv.cBusiness||sv.cUrl?" · Should be "+esc([sv.cBusiness,sv.cUrl].filter(Boolean).join(" ")):""}${sv.comment?" · "+esc(sv.comment):""}</span>`}</div>`;
+    }).join("");
+    return head + sites + `</div>`;
+  };
+  const allDone = comps.length && comps.every(({no})=>{ const l = crLine(p, no, 0); return l && l.business && l.product; });
+  const st = cr.status || {};
+  const stage1 = can ? (st.done ? `<button type="button" class="btn" data-crmgr="0">Reopen category manager review</button>` : `<button type="button" class="btn primary" data-crmgr="1" ${allDone?"":"disabled"}>Category manager review done</button>${allDone?"":`<span class="small">Answer business and product for every competitor first.</span>`}`) : "";
+  const fd = S.crFinal && S.crFinal.pid===p.id ? S.crFinal : {note: st.finalNote||""};
+  const stage2 = crFinal() ? `<div class="row" style="gap:8px"><span class="small" style="color:var(--ink)">David or Luke:</span><button type="button" class="qopt" data-crfin="Agree" aria-pressed="${st.final==="Agree"}">Agree</button><button type="button" class="qopt" data-crfin="Change" aria-pressed="${st.final==="Change"}">Change</button>
+      <input id="crFinNote" aria-label="What to change" placeholder="What to change (needed for Change)" value="${esc(fd.note||"")}" style="flex:1;min-width:160px;min-height:34px;border:1px solid var(--field);border-radius:8px;padding:0 10px"></div>` : "";
+  const sd = (S.crAdd && S.crAdd.pid===p.id) ? S.crAdd : {};
+  const add = S.team ? `<details class="addc"${sd.open?" open":""}><summary>Suggest another competitor product</summary><div style="display:grid;gap:6px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:8px">
+      <input data-cradd="business" aria-label="Business" placeholder="Business (brand)" value="${esc(sd.business||"")}"><input data-cradd="product" aria-label="Competitor product" placeholder="Competitor product" value="${esc(sd.product||"")}">
+      <input data-cradd="website" aria-label="Website" placeholder="Website name" value="${esc(sd.website||"")}"><input data-cradd="url" aria-label="Product page link" placeholder="https://" value="${esc(sd.url||"")}">
+      <input data-cradd="comment" aria-label="Comment" placeholder="Why this one" value="${esc(sd.comment||"")}"><button type="button" class="btn" data-craddgo="1">Send to Paula</button></div></details>` : "";
+  const sugs = cr.sugs.slice().sort((a,b)=>(a.status==="Pending"?0:1)-(b.status==="Pending"?0:1) || b.id-a.id);
+  const sugHtml = sugs.length ? `<div style="display:flex;flex-direction:column;gap:6px"><h3 style="margin:0;font-size:14px">Suggestions</h3>${sugs.map(x=>sugRow(p, x, false)).join("")}</div>` : "";
+  const msg = S.crMsg && S.crMsg.pid===p.id ? esc(S.crMsg.t) : "";
+  return `<div class="szbox crbox" data-crp="${id}"><div class="row" style="justify-content:space-between;align-items:baseline"><h3>Competitor review${teamTag("review")}</h3><span class="small">${can?"You review this category":"Category manager reviews"}</span></div>
+    <div style="display:flex;flex-direction:column;gap:4px">${crStatus(p)}</div>
+    ${comps.length ? comps.map(lineHtml).join("") : `<p class="small" style="margin:0">No competitors listed yet.</p>`}
+    ${stage1?`<div class="row" style="gap:8px">${stage1}</div>`:""}${stage2}${add}${sugHtml}
+    <span class="small" data-crmsg aria-live="polite">${msg}</span></div>`;
+}
+/* One suggestion. Paula sees Approve and Reject, with the final values ready to adjust. */
+function sugRow(p, x, withProduct){
+  const pending = x.status==="Pending", admin = !!S.canWrite;
+  const c = x.no ? p.comps[x.no-1] : null, site = c && x.site ? c.sites[x.site-1] : null;
+  const what = x.kind==="Add competitor" ? `Add ${esc(sugName(x)||"a competitor")}${x.website||x.url?" ("+esc([x.website,x.url].filter(Boolean).join(", "))+")":""}`
+    : x.kind==="Fix competitor" ? `${esc(x.current||(c&&c.name)||"")} should be ${esc(sugName(x)||"(see comment)")}`
+    : `Website ${esc(x.current||"")} should be ${esc([x.website,x.url].filter(Boolean).join(" ")||"(see comment)")}`;
+  const meta = `${esc(whoName(x.by))}, ${esc(fmtDate((x.at||"").slice(0,10)))}${x.comment?". "+esc(x.comment):""}`;
+  const state = pending ? `<span class="tag sno" style="margin:0">Waiting for Paula</span>` : x.status==="Approved" ? `<span class="tag sst" style="margin:0">Approved</span>` : `<span class="tag eq" style="margin:0">Rejected</span>`;
+  const done = pending ? "" : `<span class="small">${esc(whoName(x.decidedBy))}, ${esc(fmtDate((x.decidedAt||"").slice(0,10)))}${x.note?". "+esc(x.note):""}</span>`;
+  const sid = esc(x.id);
+  const nameVal = x.kind==="Fix competitor" ? (sugName(x) || (c&&c.name) || "") : sugName(x);
+  const form = pending && admin ? `<div style="display:grid;gap:6px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+      ${x.kind!=="Fix website"?`<input data-sgin="${sid}" data-sgf="name" aria-label="Competitor product name" placeholder="Competitor product name" value="${esc(nameVal)}">`:""}
+      ${x.kind!=="Fix competitor"?`<input data-sgin="${sid}" data-sgf="website" aria-label="Website name" placeholder="Website name" value="${esc(x.website || (site&&site.site) || "")}"><input data-sgin="${sid}" data-sgf="url" aria-label="Product page link" placeholder="https://" value="${esc(x.url || (site&&site.url) || "")}">`:""}
+      <input data-sgin="${sid}" data-sgf="note" aria-label="Note" placeholder="Note (optional)">
+      <span class="row" style="gap:6px"><button type="button" class="btn primary" data-sgok="${sid}" data-sgp="${esc(p.id)}">Approve</button><button type="button" class="btn" data-sgno="${sid}" data-sgp="${esc(p.id)}">Reject</button></span></div>` : "";
+  return `<div class="wpbck" data-sgrow="${sid}"><div class="row" style="justify-content:space-between;gap:6px"><span style="font-size:13px;color:var(--ink)">${withProduct?`<a href="${pLink("summary",p)}" data-pid="${esc(p.id)}">${esc(p.name)}</a>: `:""}<b>${esc(x.kind)}</b>. ${what}</span>${state}</div>
+    <span class="small">Suggested by ${meta}</span>${done}${form}</div>`;
+}
+function crMsg(pid, t){ S.crMsg = {pid, t}; const m = document.querySelector(`[data-crp="${CSS.escape(pid)}"] [data-crmsg]`); if(m) m.textContent = t; }
+const crErr = e => (e && e.message && !/fetch|network/i.test(e.message)) ? "Not saved: "+e.message.replace(/^.*?:\s(?=[A-Z])/,"") : "Not saved, check the connection and try again.";
+async function crSave(key){
+  const [pid, no, site] = key.split("|"), p = S.prods.get(pid); if(!p) return;
+  const saved = crLine(p, +no, +site) || {}, d = Object.assign({}, saved, (S.crd||{})[key]||{});
+  const isSite = +site > 0, dis = isSite ? d.website==="Disagree" : (d.business==="Disagree" || d.product==="Disagree");
+  if(dis && !((d.cBusiness||"").trim() || (d.cProduct||"").trim() || (d.cUrl||"").trim() || (d.comment||"").trim())){ crMsg(pid, "Say what is wrong: a correction or a comment."); return; }
+  crMsg(pid, "Saving…");
+  try{ await CPB.review.saveCheck({product_id:pid, competitor_no:+no, site_no:+site, business_ok:isSite?"":(d.business||""), product_ok:isSite?"":(d.product||""), website_ok:isSite?(d.website||""):"",
+      correct_business:dis?(d.cBusiness||""):"", correct_product:dis&&!isSite?(d.cProduct||""):"", correct_url:dis&&isSite?(d.cUrl||""):"", comment:dis?(d.comment||""):""});
+    if(S.crd) delete S.crd[key]; S.crMsg = {pid, t: dis ? "Saved. Your correction is waiting for Paula." : "Saved."}; render(); }
+  catch(e){ crMsg(pid, crErr(e)); }
+}
+document.addEventListener("click", async e=>{
+  const t = e.target, hit = s => t.closest && t.closest(s); let el;
+  if((el=hit("[data-crk]"))){ const key = el.dataset.crk, f = el.dataset.crf, v = el.dataset.crv, pid = key.split("|")[0];
+    S.crd = S.crd || {}; S.crd[key] = Object.assign({}, S.crd[key]||{}, {[f]: v});
+    const p = S.prods.get(pid), [, no, site] = key.split("|"), saved = crLine(p, +no, +site) || {}, d = Object.assign({}, saved, S.crd[key]);
+    const dis = +site > 0 ? d.website==="Disagree" : (d.business==="Disagree" || d.product==="Disagree");
+    const ready = +site > 0 ? !!d.website : (d.business && d.product);
+    if(ready && !dis){ await crSave(key); } else render();
+    return; }
+  if((el=hit("[data-crsave]"))){ await crSave(el.dataset.crsave); return; }
+  if((el=hit("[data-crmgr]"))){ const box = el.closest("[data-crp]"), pid = box.dataset.crp; el.disabled = true; crMsg(pid, "Saving…");
+    try{ await CPB.review.setManager(pid, el.dataset.crmgr==="1"); crMsg(pid, el.dataset.crmgr==="1" ? "Category manager review done. Next: David or Luke." : "Review reopened."); }catch(err){ el.disabled = false; crMsg(pid, crErr(err)); } return; }
+  if((el=hit("[data-crfin]"))){ const box = el.closest("[data-crp]"), pid = box.dataset.crp, ans = el.dataset.crfin, note = ($("#crFinNote")||{}).value||"";
+    if(ans==="Change" && !note.trim()){ crMsg(pid, "Say what to change in the box first."); const n=$("#crFinNote"); if(n) n.focus(); return; }
+    crMsg(pid, "Saving…"); try{ await CPB.review.setFinal(pid, ans, note); S.crFinal = null; crMsg(pid, ans==="Agree" ? "Agreed." : "Change requested."); }catch(err){ crMsg(pid, crErr(err)); } return; }
+  if((el=hit("[data-craddgo]"))){ const box = el.closest("[data-crp]"), pid = box.dataset.crp, d = (S.crAdd && S.crAdd.pid===pid) ? S.crAdd : {};
+    if(!(d.product||"").trim()){ crMsg(pid, "Name the competitor product."); return; }
+    el.disabled = true; crMsg(pid, "Sending…");
+    try{ await CPB.review.suggest({product_id:pid, business:d.business||"", product:d.product, website:d.website||"", url:d.url||"", comment:d.comment||""}); S.crAdd = null; S.crMsg = {pid, t:"Sent. It is waiting for Paula."}; render(); }
+    catch(err){ el.disabled = false; crMsg(pid, crErr(err)); } return; }
+  if((el=hit("[data-sgok],[data-sgno]"))){ const sid = el.dataset.sgok || el.dataset.sgno, ok = !!el.dataset.sgok, pid = el.dataset.sgp, row = el.closest("[data-sgrow]");
+    const val = f => { const i = row && row.querySelector(`[data-sgf="${f}"]`); return i ? i.value : ""; };
+    const m = t2 => { crMsg(pid, t2); const s2 = $("#sgMsg"); if(s2) s2.textContent = t2; };
+    if(ok && row.querySelector('[data-sgf="name"]') && !val("name").trim()){ m("Give the competitor product name."); return; }
+    row.querySelectorAll("button").forEach(b=>b.disabled=true); m("Saving…");
+    try{ await CPB.review.decide({id:+sid, approve:ok, name:val("name"), website:val("website"), url:val("url"), note:val("note")}); m(ok ? "Approved. The board is updated." : "Rejected."); }
+    catch(err){ row.querySelectorAll("button").forEach(b=>b.disabled=false); m(crErr(err)); } return; }
+  if((el=hit("[data-cledit]"))){ S.clEdit = el.dataset.cledit; render(); return; }
+  if((el=hit("[data-clx]"))){ S.clEdit = null; render(); return; }
+  if((el=hit("[data-cladd]"))){ const rows = document.querySelectorAll("[data-clrow]"); S.clDraft = [...rows].map(r=>({brand:r.querySelector('[data-clf="brand"]').value, url:r.querySelector('[data-clf="url"]').value, states:r.querySelector('[data-clf="states"]').value})).concat([{brand:"",url:"",states:""}]); render(); return; }
+  if((el=hit("[data-clsave]"))){ const cid = el.dataset.clsave, rows = document.querySelectorAll("[data-clrow]"), m = $("#clMsg");
+    const items = [...rows].map(r=>({brand:r.querySelector('[data-clf="brand"]').value, url:r.querySelector('[data-clf="url"]').value, states:r.querySelector('[data-clf="states"]').value}));
+    el.disabled = true; if(m) m.textContent = "Saving…";
+    try{ await CPB.review.saveList({id:cid, items}); S.clEdit = null; S.clDraft = null; render(); }
+    catch(err){ el.disabled = false; if(m) m.textContent = crErr(err); } return; }
+});
+document.addEventListener("input", e=>{ const el = e.target; if(!el || !el.dataset) return;
+  if(el.dataset.crin){ S.crd = S.crd || {}; S.crd[el.dataset.crin] = Object.assign({}, S.crd[el.dataset.crin]||{}, {[el.dataset.crf]: el.value}); }
+  if(el.dataset.cradd){ const pid = el.closest("[data-crp]").dataset.crp; if(!S.crAdd || S.crAdd.pid!==pid) S.crAdd = {pid, open:true}; S.crAdd[el.dataset.cradd] = el.value; }
+  if(el.id==="crFinNote"){ const pid = el.closest("[data-crp]").dataset.crp; S.crFinal = {pid, note: el.value}; } });
+/* Competitor list per category: business, website and the states where each is strong. The weekly price search uses it. */
+const ST8 = ["NSW","VIC","QLD","SA","WA","TAS","ACT","NT"];
+function compListBox(cat){
+  if(!vis("competitor_prices")) return "";
+  const list = cat.compList || [], ed = S.canWrite && S.clEdit===cat.id;
+  if(!list.length && !S.canWrite) return "";
+  if(ed){ const rows = (S.clDraft || (list.length ? list : [{brand:"",url:"",states:""}]));
+    return `<section class="szbox" style="margin-top:20px" aria-labelledby="clH"><h3 id="clH">Competitor list</h3><p class="small" style="margin:0">One row per competitor business. States: ${ST8.join(", ")}, separated by commas. An empty business name removes the row.</p>
+      ${rows.map((r,i)=>`<div data-clrow="${i}" style="display:grid;gap:6px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))"><input data-clf="brand" aria-label="Business ${i+1}" placeholder="Business" value="${esc(r.brand)}"><input data-clf="url" aria-label="Website ${i+1}" placeholder="https://" value="${esc(r.url)}"><input data-clf="states" aria-label="Strong in states ${i+1}" placeholder="e.g. NSW, VIC" value="${esc(r.states)}"></div>`).join("")}
+      <div class="row" style="gap:8px"><button type="button" class="btn" data-cladd="1">Add a row</button><button type="button" class="btn primary" data-clsave="${esc(cat.id)}">Save</button><button type="button" class="btn" data-clx="1">Cancel</button><span class="small" id="clMsg" aria-live="polite"></span></div></section>`; }
+  return `<section class="szbox" style="margin-top:20px" aria-labelledby="clH"><div class="row" style="justify-content:space-between;align-items:baseline"><h3 id="clH">Competitor list${teamTag("competitor_prices")}</h3>${S.canWrite?`<button type="button" class="linkbtn" data-cledit="${esc(cat.id)}">Edit</button>`:""}</div>
+    ${list.length ? `<div class="sumwrap"><table class="szt"><thead><tr><th scope="col">Business</th><th scope="col">Website</th><th scope="col">Strong in</th></tr></thead><tbody>${list.map(r=>`<tr><th scope="row">${esc(r.brand)}</th><td>${safeUrl(r.url)?`<a href="${esc(safeUrl(r.url))}" target="_blank" rel="noopener">${esc(r.url.replace(/^https?:\/\/(www\.)?/,"").replace(/\/$/,""))}</a>`:`<span class="small">Not set</span>`}</td><td>${esc(r.states)||`<span class="small">Not set</span>`}</td></tr>`).join("")}</tbody></table></div>`
+      : `<p class="small" style="margin:0">No competitors listed yet.</p>`}</section>`;
+}
+/* Summary page: suggestions waiting for Paula, then the last decided ones. */
+function sugSection(){
+  if(!vis("review")) return "";
+  const all = liveProds().concat([...S.prods.values()].filter(isLeave)).flatMap(p=>crOf(p).sugs.map(x=>({p, x})));
+  const pend = all.filter(y=>y.x.status==="Pending").sort((a,b)=>a.x.id-b.x.id), dec = all.filter(y=>y.x.status!=="Pending").sort((a,b)=>String(b.x.decidedAt).localeCompare(String(a.x.decidedAt))).slice(0,20);
+  if(!pend.length && !dec.length) return S.team ? `<section style="display:flex;flex-direction:column;gap:8px" aria-labelledby="sgH"><h2 id="sgH">Suggestions waiting for Paula</h2><p class="msg">No suggestions yet. They come from the Competitor review on each product.</p></section>` : "";
+  return `<section style="display:flex;flex-direction:column;gap:8px" aria-labelledby="sgH"><h2 id="sgH">Suggestions waiting for Paula (${pend.length})${teamTag("review")}</h2><p class="small" id="sgMsg" aria-live="polite"></p>
+    ${pend.length ? pend.map(y=>sugRow(y.p, y.x, true)).join("") : `<p class="msg">Nothing waiting.</p>`}
+    ${dec.length ? `<details class="addc"><summary>Recently decided (${dec.length})</summary>${dec.map(y=>sugRow(y.p, y.x, true)).join("")}</details>` : ""}</section>`;
+}
 function sizeBox(p, i){
   const sk = skuOf(p); if(!sk) return "";
   const pl = xs => xs.length ? xs.map(x=>`<span class="szp">${esc(x.comp)}, ${esc(x.site)} <b>${money(x.p)}</b></span>`).join("") : `<span class="small">None</span>`;
@@ -1437,7 +1614,7 @@ function detail(p){
     ${sizeBox(p, i)}
     ${vis("competitor_prices")?`<div style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between"><h3>Competitor prices${teamTag("competitor_prices")}</h3><span class="small">${dates?"Checked "+esc(dates):""}</span></div>${lanes}${comps||`<p class="small">No competitors listed.</p>`}</div>`:""}
     ${isLeave(p) ? "" : wpbBox(p)}
-    ${prodReview(p)}
+    ${isLeave(p) ? "" : crBox(p)}
     ${isLeave(p) ? "" : histBox(p)}
   </div></div>`;
 }
@@ -1785,6 +1962,7 @@ function renderSummary(){
   const groups = DORDER.map(k=>{ const g=R.filter(x=>x.a.k===k); if(!g.length) return ""; return `<tr class="dg"><th colspan="8">${actPill(k)} <span class="small">${g.length} product${g.length>1?"s":""}</span></th></tr>${g.map(row).join("")}`; }).join("");
   return `<div class="ph"><div>${backBtn()}<h1>Pricing decisions</h1><p class="sub">${R.length ? plural(R.length,"decision")+" so far" : "No decisions yet"}. ${S.settings.listGst==="free"?"All categories treated as GST-free":"LIST and proposed LIST"+ex+". Online and market prices include GST"}${lc?(S.settings.listGst==="free"?". Online prices checked ":", checked ")+esc(lcHi&&lcHi!==lc?fmtDate(lc)+" to "+fmtDate(lcHi):fmtDate(lc)):""}.</p></div><div class="row">${S.dl?`<button type="button" class="btn primary" id="dlSum">Export to Excel</button>`:""}<button type="button" class="btn" id="copySum">Copy for Excel</button></div></div>
   <p class="small" id="sumMsg" aria-live="polite"></p>
+  ${sugSection()}
   ${R.length ? `<div class="sumwrap"><table class="sumt"><thead><tr><th scope="col">Product</th><th scope="col">Reason</th><th scope="col" class="num">LIST${ex}</th><th scope="col" class="num">Proposed${ex}</th><th scope="col" class="num">Online avg</th><th scope="col" class="num">Market avg</th><th scope="col" class="num">Vs market</th><th scope="col" class="num">Units vs last year</th></tr></thead><tbody>${groups}</tbody></table></div>`
     : `<p class="msg">No decisions yet. Open a flagged product and pick a decision. It will show here.</p>`}
   ${(()=>{ const rv = liveProds().filter(reviewed); if(!rv.length) return "";
@@ -1872,6 +2050,7 @@ function openEditor(id){
   const p0 = S.prods.get(id); if(!p0) return;
   editing = JSON.parse(JSON.stringify(p0));
   const p = editing;
+  for(let k=0;k<2;k++) p.comps.push({name:"", sites:[0,1,2].map(()=>({site:"",p:null,url:"",date:""}))});
   const chips = isLeave(p) ? `<span class="chip"><i></i>${esc(p.status||"Leaving")}</span>${p.instead?`<span class="chip">${esc(p.instead)}</span>`:""}`
     : (p.flag?`<span class="chip">${esc(p.flag)}</span>`:"");
   const shead = `<div class="shead" aria-hidden="true"><span>Website</span><span>Price ($)</span><span>Product page link</span><span>Note</span><span>Checked</span><span></span></div>`;
@@ -1905,7 +2084,7 @@ function openEditor(id){
       <div class="calc" id="calc"></div>
     </div>
     <div class="sec"><h3>2. Our products in other websites</h3>${onHtml}</div>
-    <div class="sec"><h3>3. Competitor prices</h3><p class="small">Up to ${p.comps.length} competitors${nSlots(p)===5?" for a Best tier product":""}. Pick the product a therapist or client would most likely ask our store staff about.</p>${compHtml}</div>
+    <div class="sec"><h3>3. Competitor prices</h3><p class="small">Add as many competitors as you need: two more empty ones appear each time you open this. Pick the product a therapist or client would most likely ask our store staff about.</p>${compHtml}</div>
     <div class="sec"><h3>4. Decision</h3>
       <p class="small" id="aSug" style="margin-bottom:10px"></p>
       <div class="ours-grid">
