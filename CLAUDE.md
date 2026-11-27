@@ -27,7 +27,8 @@ Follow these rules in every session.
 
 ## Where things are
 
-- index.html: the whole site. Edit it directly. It holds no product data.
+- index.html: the whole site. Edit it directly. It holds no product data. It carries a noindex, nofollow robots tag. Edit buttons show only to Paula when signed in.
+- Why people buy: tables why_people_buy, why_people_buy_comparison, open_checks and why_people_buy_progress, shown on each product page. Progress shows which products are Not started, Done or Skipped.
 - cpb-backend.js: reads the Supabase tables, builds the records the page uses, saves through save_product, save_category and save_settings, and runs the sign-in dialog.
 - supabase/schema.sql: every table, the access rules and the save functions.
 - Team list: the members table. Only those emails see or change team-only data.

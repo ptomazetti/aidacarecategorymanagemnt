@@ -21,7 +21,7 @@
       const r = await sb.auth.getSession(); session = r.data && r.data.session;
       if(session){ const t = await sb.rpc("is_team"); team = t.data === true; if(!team) authNote = "This login is not on the team list yet. Ask Paula to add it.";
         /* Paula (role admin in members) is the only one who changes the board until approvals are set up (27 Nov 2026). */
-        if(team){ try{ const m = await sb.from("members").select("role").eq("email", String(session.user.email || "").toLowerCase()); admin = !!(m.data && m.data[0] && m.data[0].role === "admin"); }catch(_){ admin = false; } } }
+        if(team){ try{ const a = await sb.rpc("is_admin"); admin = a.data === true; }catch(_){ admin = false; } } }
     }catch(_){ team = false; }
     sb.auth.onAuthStateChange((ev, s) => {
       session = s;
@@ -34,7 +34,8 @@
   /* ---------- reading the tables ---------- */
   const PUBLIC = ["managers","manager_categories_to_add","category_groups","categories","category_needs","category_main_competitors",
     "category_gbb_competitors","category_range_extras","products","product_specs","product_placements","product_codes","product_sizes",
-    "product_selling_points","product_flyers","product_competitors","competitor_prices","retailers","retailer_store_states","settings"];
+    "product_selling_points","product_flyers","product_competitors","competitor_prices","retailers","retailer_store_states","settings",
+    "why_people_buy","why_people_buy_comparison","open_checks","why_people_buy_progress"];
   const TEAM = ["product_costs","product_sales","product_internal","online_prices","product_reviews","product_review_competitors",
     "category_reviews","retailer_sales_info","retailer_codes","retailer_net_prices","price_changes"];
   const KEYS = {
@@ -44,6 +45,8 @@
     product_placements:["product_id","sort_order"], product_codes:["product_id","sort_order"], product_sizes:["product_id","sort_order"],
     product_selling_points:["product_id","sort_order"], product_flyers:["product_id","sort_order"], product_competitors:["product_id","competitor_no"],
     competitor_prices:["product_id","competitor_no","site_no"], retailers:["website"], retailer_store_states:["website","state"], settings:["settings_id"],
+    why_people_buy:["product_id","reason_no"], why_people_buy_comparison:["product_id","reason_no","comparison_id"],
+    open_checks:["product_id","check_id"], why_people_buy_progress:["product_id"],
     product_costs:["product_id"], product_sales:["product_id"], product_internal:["product_id"], online_prices:["product_id","site_no"],
     product_reviews:["product_id"], product_review_competitors:["product_id","sort_order"], category_reviews:["category_id"],
     retailer_sales_info:["info_id"], retailer_codes:["website","sort_order"], retailer_net_prices:["website","product_id"], price_changes:["change_id"]
@@ -55,7 +58,7 @@
       let q = sb.from(t).select("*");
       (KEYS[t] || []).forEach(k => { q = q.order(k); });
       const r = await q.range(from, from + PAGE - 1);
-      if(r.error) throw mkErr("unavailable", r.error.message);
+      if(r.error){ const e = mkErr("unavailable", r.error.message); e.denied = r.error.code === "42501" || /permission denied/i.test(r.error.message || ""); throw e; }
       const rows = r.data || [];
       out.push(...rows);
       if(rows.length < PAGE) break;
@@ -74,8 +77,9 @@
   async function loadAll(){
     const pubRows = await Promise.all(PUBLIC.map(fetchAll));
     const T = {}; PUBLIC.forEach((t, i) => { T[t] = pubRows[i]; });
-    /* Signed out: a table the database still keeps for the team comes back empty instead of stopping the page. */
-    const teamRows = await Promise.all(TEAM.map(t => team ? fetchAll(t) : fetchAll(t).catch(() => [])));
+    /* Signed out: a table the database keeps for the team (refused, not failed) comes back empty. Any other failure stops
+       the load, so missing cost or sales data is never shown as if there were none. */
+    const teamRows = await Promise.all(TEAM.map(t => team ? fetchAll(t) : fetchAll(t).catch(e => { if(e && e.denied) return []; throw e; })));
     TEAM.forEach((t, i) => { T[t] = teamRows[i]; });
     return build(T);
   }
@@ -87,6 +91,8 @@
       ["product_competitors","product_id"],["online_prices","product_id"],["product_review_competitors","product_id"],["retailer_store_states","website"],
       ["retailer_codes","website"],["retailer_net_prices","website"]].forEach(([t, k]) => { G[t] = group(T[t], k); });
     const prices = group(T.competitor_prices, "product_id");
+    const wpbR = group(T.why_people_buy, "product_id"), wpbC = group(T.why_people_buy_comparison, "reason_id"),
+      wpbK = group(T.open_checks, "product_id"), wpbP = new Map(T.why_people_buy_progress.map(r => [r.product_id, r]));
     const one = (t, k) => new Map(T[t].map(r => [r[k], r]));
     const costs = one("product_costs","product_id"), sales = one("product_sales","product_id"), internal = one("product_internal","product_id"),
       reviews = one("product_reviews","product_id"), catReviews = one("category_reviews","category_id");
@@ -127,6 +133,13 @@
         price:{list:n(r.list_price)}, spec:(G.product_specs.get(id)||[]).map(x => x.spec),
         aspire:!!r.is_aspire, codes:(G.product_codes.get(id)||[]).map(x => x.item_code),
         flyers:(G.product_flyers.get(id)||[]).map(x => x.url), reasons:(G.product_selling_points.get(id)||[]).map(x => x.point)};
+      /* Why people buy: reasons with their competitor comparison, and open checks. */
+      p.wpb = {reasons:(wpbR.get(id)||[]).map(x => ({id:x.reason_id, no:x.reason_no, title:s(x.reason_title), feature:s(x.feature), say:s(x.what_people_say),
+          need:s(x.real_need), measure:s(x.measure), status:s(x.status) || "Proposed", date:day(x.date_checked),
+          comps:(wpbC.get(x.reason_id)||[]).map(c => ({id:c.comparison_id, comp:s(c.competitor_product), ours:s(c.our_value), theirs:s(c.competitor_value),
+            result:s(c.result), note:s(c.note), ourUrl:s(c.our_source_url), ourType:s(c.our_source_type), url:s(c.source_url), type:s(c.source_type), date:day(c.date_checked)}))})),
+        checks:(wpbK.get(id)||[]).map(x => ({id:x.check_id, issue:s(x.issue), urls:s(x.source_urls).split(/\s+/).filter(Boolean), resolved:!!x.resolved, comment:s(x.comment), date:day(x.date_added)})),
+        progress:wpbP.has(id) ? s(wpbP.get(id).status) : "", skipWhy:wpbP.has(id) ? s(wpbP.get(id).reason_if_skipped) : ""};
       if(r.discontinued) p.discontinued = true;
       if(r.image_path) p.img = r.image_path;
       if(r.updated_at) p.updated = r.updated_at;
@@ -234,6 +247,28 @@
     if(!call) throw mkErr("invalid_argument", "This can't be saved here.");
     const r = await sb.rpc(call[0], call[1]);
     if(r.error){ const denied = r.error.code === "42501" || /row-level security|permission|only the team/i.test(r.error.message || ""); throw mkErr(denied ? "invalid_argument" : "unavailable", r.error.message); }
+    later();
+  }
+
+  /* Why people buy edits. Until the site is approved only Paula (admin) changes them, in the page and in the database.
+     A reason and its comparison rows save together through save_why_people_buy: all or nothing. */
+  const WPB = {
+    why_people_buy:{key:"reason_id", cols:["status","date_checked"]},
+    open_checks:{key:"check_id", cols:["resolved","comment"]}
+  };
+  async function wpbSaveReason(payload){
+    if(!team || !admin) throw mkErr("invalid_argument", "You can view this page but not change it.");
+    const r = await sb.rpc("save_why_people_buy", {r: payload});
+    if(r.error){ const denied = r.error.code === "42501" || /row-level security|permission|only paula/i.test(r.error.message || ""); throw mkErr(denied ? "invalid_argument" : "unavailable", r.error.message); }
+    later();
+  }
+  async function wpbSave(table, id, values){
+    if(!team || !admin) throw mkErr("invalid_argument", "You can view this page but not change it.");
+    const t = WPB[table]; if(!t) throw mkErr("invalid_argument", "This can't be saved here.");
+    const body = {}; Object.keys(values || {}).forEach(k => { if(t.cols.includes(k)) body[k] = values[k] === "" ? null : values[k]; });
+    const r = await sb.from(table).update(body).eq(t.key, id).select(t.key);
+    if(r.error){ const denied = r.error.code === "42501" || /row-level security|permission/i.test(r.error.message || ""); throw mkErr(denied ? "invalid_argument" : "unavailable", r.error.message); }
+    if(!r.data || !r.data.length) throw mkErr("invalid_argument", "Not saved: this login can't change it.");
     later();
   }
 
@@ -348,6 +383,8 @@
     email: () => (session && session.user && session.user.email) || "",
     note: () => authNote,
     openSignIn: () => openAuth("signin"),
+    wpbSave,
+    wpbSaveReason,
     signOut: async () => { try{ if(sb) await sb.auth.signOut(); }catch(_){} location.reload(); }
   };
 })();

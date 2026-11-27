@@ -6,7 +6,8 @@
 --   Public tables, anyone with the link: managers, manager_categories_to_add, category_groups, categories,
 --     category_needs, category_main_competitors, category_gbb_competitors, category_range_extras, products,
 --     product_specs, product_placements, product_codes, product_sizes, product_selling_points, product_flyers,
---     product_competitors, competitor_prices, retailers, retailer_store_states, settings.
+--     product_competitors, competitor_prices, retailers, retailer_store_states, settings,
+--     why_people_buy, why_people_buy_comparison, open_checks, why_people_buy_progress.
 --   Until the site is approved (Paula, 27 Nov 2026) these can also be read by anyone with the link:
 --     product_costs, product_sales, product_internal, online_prices, product_reviews, product_review_competitors,
 --     category_reviews, retailer_sales_info, retailer_codes, retailer_net_prices, price_changes.
@@ -399,7 +400,8 @@ begin
   insert into public.change_history(table_name, record_key, action, old_values, new_values, changed_by)
   values (tg_table_name,
           concat_ws(' / ', r->>'product_id', r->>'category_id', r->>'website', r->>'manager_id', r->>'group_id',
-                    r->>'settings_id', r->>'info_id', r->>'change_id', r->>'competitor_no', r->>'site_no', r->>'sort_order', r->>'line_no', r->>'state'),
+                    r->>'settings_id', r->>'info_id', r->>'change_id', r->>'competitor_no', r->>'site_no', r->>'sort_order', r->>'line_no', r->>'state',
+                    'reason ' || (r->>'reason_no'), 'reason_id ' || (r->>'reason_id'), 'comparison_id ' || (r->>'comparison_id'), 'check_id ' || (r->>'check_id')),
           lower(tg_op), o::text, n::text, coalesce(auth.jwt() ->> 'email', 'system'));
   return null;
 end $$;
@@ -547,6 +549,159 @@ end $$;
 revoke all on function public.only_team_signups() from public, anon, authenticated;
 drop trigger if exists only_team_signups on auth.users;
 create trigger only_team_signups before insert on auth.users for each row execute function public.only_team_signups();
+
+-- ---------- why people buy ----------
+-- One row per reason per product (reason_no 1 to 3, ranked by the need of whoever approves the purchase).
+create table public.why_people_buy (
+  reason_id         bigint generated always as identity primary key,
+  product_id        text not null references public.products on delete cascade,
+  category_manager  text,
+  category          text,
+  product           text,
+  reason_no         integer not null check (reason_no between 1 and 3),
+  reason_title      text not null,
+  feature           text,
+  what_people_say   text,
+  real_need         text,
+  measure           text,
+  status            text not null default 'Proposed' check (status in ('Proposed','Confirmed')),
+  date_checked      date,
+  unique (product_id, reason_no)
+);
+
+-- One row per reason per competitor product on the board. Our value and the competitor value each keep their own source.
+create table public.why_people_buy_comparison (
+  comparison_id           bigint generated always as identity primary key,
+  reason_id               bigint not null references public.why_people_buy on delete cascade,
+  product_id              text not null references public.products on delete cascade,
+  reason_no               integer not null,
+  competitor_product      text not null,
+  our_value               text,
+  competitor_value        text,
+  result                  text check (result in ('Better','Same','Worse','Not proven','Not found')),
+  note                    text,
+  our_source_url          text,
+  our_source_type         text check (our_source_type in ('Aidacare','manufacturer','retailer')),
+  source_url              text,           -- competitor value source
+  source_type             text check (source_type in ('Aidacare','manufacturer','retailer')),
+  date_checked            date
+);
+create index why_people_buy_comparison_product_idx on public.why_people_buy_comparison (product_id, reason_no);
+
+-- Sources that disagree, or values still to find. source_urls holds one URL per line.
+create table public.open_checks (
+  check_id     bigint generated always as identity primary key,
+  product_id   text not null references public.products on delete cascade,
+  product      text,
+  issue        text not null,
+  source_urls  text,
+  resolved     boolean not null default false,
+  comment      text,
+  date_added   date
+);
+create index open_checks_product_idx on public.open_checks (product_id);
+
+-- Where the fill-in job is up to, so it can pick up again if it stops.
+create table public.why_people_buy_progress (
+  product_id         text primary key references public.products on delete cascade,
+  product            text,
+  status             text not null default 'Not started' check (status in ('Not started','Done','Skipped')),
+  reason_if_skipped  text,
+  date               date
+);
+
+-- Anyone can read. Only the team (members) can add, change or delete. Every change goes to change_history.
+do $$
+declare t text;
+begin
+  foreach t in array array['why_people_buy','why_people_buy_comparison','open_checks','why_people_buy_progress'] loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('revoke all on public.%I from anon, authenticated', t);
+    execute format('create policy %I on public.%I for select to anon, authenticated using (true)', t||'_read', t);
+    execute format('create policy %I on public.%I for insert to authenticated with check (public.is_team())', t||'_insert', t);
+    execute format('create policy %I on public.%I for update to authenticated using (public.is_team()) with check (public.is_team())', t||'_update', t);
+    execute format('create policy %I on public.%I for delete to authenticated using (public.is_team())', t||'_delete', t);
+    execute format('grant select on public.%I to anon', t);
+    execute format('grant select, insert, update, delete on public.%I to authenticated', t);
+    execute format('create trigger %I after insert or update or delete on public.%I for each row execute function public.log_change()', t||'_history', t);
+  end loop;
+end $$;
+
+-- ---------- only Paula changes the board until it is approved ----------
+-- is_admin: signed in with an email whose role is admin in members (Paula).
+create or replace function public.is_admin()
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.members m
+    where lower(m.email) = lower(coalesce(auth.jwt() ->> 'email', '')) and m.role = 'admin'
+  );
+$$;
+revoke all on function public.is_admin() from public;
+grant execute on function public.is_admin() to anon, authenticated;
+
+-- Add, change and delete on every board table: Paula only. Reading is unchanged.
+do $$
+declare t text;
+begin
+  foreach t in array array['managers','manager_categories_to_add','category_groups','categories','category_needs',
+    'category_main_competitors','category_gbb_competitors','category_range_extras','products','product_specs',
+    'product_placements','product_codes','product_sizes','product_selling_points','product_flyers',
+    'product_competitors','competitor_prices','retailers','retailer_store_states','settings',
+    'product_costs','product_sales','product_internal','online_prices','product_reviews',
+    'product_review_competitors','category_reviews','retailer_sales_info','retailer_codes','retailer_net_prices',
+    'price_changes','why_people_buy','why_people_buy_comparison','open_checks','why_people_buy_progress'] loop
+    execute format('drop policy if exists %I on public.%I', t||'_insert', t);
+    execute format('drop policy if exists %I on public.%I', t||'_update', t);
+    execute format('drop policy if exists %I on public.%I', t||'_delete', t);
+    execute format('create policy %I on public.%I for insert to authenticated with check (public.is_admin())', t||'_insert', t);
+    execute format('create policy %I on public.%I for update to authenticated using (public.is_admin()) with check (public.is_admin())', t||'_update', t);
+    execute format('create policy %I on public.%I for delete to authenticated using (public.is_admin())', t||'_delete', t);
+  end loop;
+end $$;
+
+-- ---------- why people buy: save a reason and its comparison rows in one go ----------
+-- r = {"id": reason_id, "fields": {...}, "comps": [{"id": comparison_id, "fields": {...}}]}. Only fields sent are changed.
+create or replace function public.save_why_people_buy(r jsonb)
+returns void language plpgsql security invoker set search_path = public as $$
+declare f jsonb := coalesce(r->'fields', '{}'::jsonb); c jsonb; g jsonb; rid bigint := (r->>'id')::bigint;
+begin
+  if not public.is_admin() then raise exception 'Only Paula can change the board until it is approved.' using errcode = '42501'; end if;
+  update why_people_buy set
+    reason_title    = case when f ? 'reason_title' then coalesce(nullif(f->>'reason_title',''), reason_title) else reason_title end,
+    feature         = case when f ? 'feature' then nullif(f->>'feature','') else feature end,
+    what_people_say = case when f ? 'what_people_say' then nullif(f->>'what_people_say','') else what_people_say end,
+    real_need       = case when f ? 'real_need' then nullif(f->>'real_need','') else real_need end,
+    measure         = case when f ? 'measure' then nullif(f->>'measure','') else measure end,
+    status          = case when f ? 'status' then f->>'status' else status end,
+    date_checked    = current_date
+  where reason_id = rid;
+  if not found then raise exception 'Unknown reason %', rid; end if;
+  for c in select value from jsonb_array_elements(coalesce(r->'comps','[]'::jsonb)) loop
+    g := coalesce(c->'fields','{}'::jsonb);
+    update why_people_buy_comparison set
+      our_value        = case when g ? 'our_value' then nullif(g->>'our_value','') else our_value end,
+      competitor_value = case when g ? 'competitor_value' then nullif(g->>'competitor_value','') else competitor_value end,
+      result           = case when g ? 'result' then nullif(g->>'result','') else result end,
+      note             = case when g ? 'note' then nullif(g->>'note','') else note end,
+      date_checked     = current_date
+    where comparison_id = (c->>'id')::bigint and reason_id = rid;
+    if not found then raise exception 'Unknown comparison %', c->>'id'; end if;
+  end loop;
+end $$;
+revoke all on function public.save_why_people_buy(jsonb) from public, anon;
+grant execute on function public.save_why_people_buy(jsonb) to authenticated;
+
+-- ---------- live updates for the why people buy tables ----------
+do $$
+declare t text;
+begin
+  for t in select unnest(array['why_people_buy','why_people_buy_comparison','open_checks','why_people_buy_progress']) loop
+    begin
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    exception when duplicate_object then null; when undefined_object then null;
+    end;
+  end loop;
+end $$;
 
 -- ---------- old storage ----------
 -- legacy_docs and legacy_docs_history hold the data as it was before 27 Nov 2026 (one table of bundled records).
