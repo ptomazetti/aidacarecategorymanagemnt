@@ -1238,6 +1238,33 @@ function cmpPick(p){
   const cur = S.cmp && S.cmp.pid===p.id ? S.cmp.k : "";
   return `<label class="cmpsel"><span>Compare with</span><select id="cmpSel"><option value="">Choose a product</option>${cs.length?`<optgroup label="Competitors">${cs.map(x=>`<option value="c:${x.i}" ${cur==="c:"+x.i?"selected":""}>${esc(x.c.name)}</option>`).join("")}</optgroup>`:""}${ours.length?`<optgroup label="Our range">${ours.map(o=>`<option value="p:${esc(o.id)}" ${cur==="p:"+o.id?"selected":""}>${esc(o.name)}</option>`).join("")}</optgroup>`:""}</select></label>`;
 }
+/* Why people buy in Compare (Paula, 27 Nov 2026): the reasons, so the team has them to hand when someone asks. */
+/* A comparison row belongs to the board competitor whose name it starts with (the longest match wins), e.g.
+   "Karma Ergo Lite Deluxe Transit (for AP)" belongs to "Karma Ergo Lite Deluxe", never to "Karma Ergo Lite 2". */
+const lc = s => String(s||"").trim().toLowerCase();
+function compOfRow(rowName, names){
+  const r = lc(rowName).replace(/\s*\(.*\)\s*$/,"");
+  const hits = names.filter(n=>{ const b = lc(n).replace(/\s*\(.*\)\s*$/,""); return r===b || r.startsWith(b+" "); });
+  return hits.sort((a,b)=>b.length-a.length)[0] || null;
+}
+function cmpWhy(q){
+  const rs = ((q.wpb && q.wpb.reasons) || []).slice().sort((a,b)=>a.no-b.no);
+  if(!rs.length) return `<span class="small">Not filled in yet</span>`;
+  return `<ol>${rs.map(r=>`<li><b>${esc(r.title)}</b>${r.status!=="Confirmed"?` <span class="tag sno" style="margin:0">Proposed</span>`:""}<span class="small" style="display:block">${esc(r.need)}</span></li>`).join("")}</ol>`;
+}
+function cmpWhyRows(p, compName){
+  const rs = ((p.wpb && p.wpb.reasons) || []).slice().sort((a,b)=>a.no-b.no);
+  if(!rs.length) return [["Why people buy", `<span class="small">Not filled in yet</span>`, ""]];
+  return rs.map(r=>{
+    const names = compsOf(p).map(c=>c.name);
+    const rows = r.comps.filter(c=>compOfRow(c.comp, names)===compName);
+    const label = `${r.no}. ${esc(r.title)}${r.status!=="Confirmed"?` <span class="tag sno" style="margin:0">Proposed</span>`:""}<span class="small" style="display:block;font-weight:400">${esc(r.need)}</span><span class="small" style="display:block;font-weight:400">Measure: ${esc(r.measure)}</span>`;
+    if(!rows.length) return [label, `<span class="small">Not compared yet</span>`, ""];
+    const ours = rows.map(c=>`<div>${rows.length>1?`<span class="small">${esc(c.comp)}: </span>`:""}${esc(c.ours||"Not found")}</div>`).join("");
+    const theirs = rows.map(c=>`<div>${c.result?`<span class="tag ${WPB_RES[c.result]||"sno"}" style="margin:0 6px 0 0">${esc(c.result)}</span>`:""}${esc(c.theirs||"Not found")}${c.note?`<span class="small" style="display:block">${esc(c.note)}</span>`:""}</div>`).join("");
+    return [label, ours, theirs];
+  });
+}
 function cmpBox(p){
   if(!S.cmp || S.cmp.pid!==p.id || !S.cmp.k) return "";
   const a = info(p), k = S.cmp.k, units = q => { const s=q.sales; if(!s||s.units==null) return "n/a"; const ch=unitChg(q); return s.units.toLocaleString("en-AU")+(ch!=null?` <span class="small">(${pct(ch)} on last year)</span>`:""); };
@@ -1256,6 +1283,7 @@ function cmpBox(p){
       ...(S.team ? [["Units, last 12 months", units(p), units(b)], ["GM%", gmv(p), gmv(b)]] : []),
       ["Spec", esc(p.spec.join(" · "))||"n/a", esc(b.spec.join(" · "))||"n/a"],
       ["Selling points", why(p), why(b)],
+      ...(vis("why_buy") ? [["Why people buy", cmpWhy(p), cmpWhy(b)]] : []),
       ["Decision", actPill(actionOf(p).k,p), actPill(actionOf(b).k,b)]];
   } else {
     const c = compsOf(p)[+k.slice(2)]; if(!c) return ""; title = c.name;
@@ -1266,7 +1294,8 @@ function cmpBox(p){
       ["Price range", "", v.length>1?money(Math.min(...v))+" to "+money(Math.max(...v)):(v.length?money(v[0]):"n/a")],
       ["Websites", "", st.map(s=>`<div>${esc(s.site)} ${money(num(s.p))}${safeUrl(s.url)?` <a href="${esc(safeUrl(s.url))}" target="_blank" rel="noopener">Open page</a>`:""}</div>`).join("")],
       ["Spec", esc(p.spec.join(" · "))||"n/a", `<span class="small">Not on the board yet</span>`],
-      ["Selling points", why(p), `<span class="small">Not on the board</span>`]];
+      ["Selling points", why(p), `<span class="small">Not on the board</span>`],
+      ...(vis("why_buy") ? cmpWhyRows(p, c.name) : [])];
   }
   return `<section class="cmpw" aria-labelledby="cmpH"><div class="row" style="justify-content:space-between;align-items:center"><h3 id="cmpH">${esc(p.name)} vs ${esc(title)}</h3><button type="button" class="btn" id="cmpX">Close comparison</button></div><table class="cmpt"><tbody>${rows.map(([l,x,y],ri)=>`<tr${ri===0?' class="hd"':""}><th scope="row">${l}</th><td>${x}</td><td>${y}</td></tr>`).join("")}</tbody></table></section>`;
 }
