@@ -35,7 +35,7 @@ a{color:var(--teal)} a:hover{color:var(--coal)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 h1{font:700 28px/1.15 var(--display);color:var(--ink);margin:0}
 h2{font:700 17px/1.25 var(--display);color:var(--ink);margin:0}
-h3{font:700 12px/1.2 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink);margin:0}
+h3{font:700 12px/1.2 var(--body);letter-spacing:.06em;text-transform:none;color:var(--ink);margin:0}
 .small{font-size:12px;color:var(--text);margin:0}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--field);background:var(--surface);color:var(--ink);font-weight:600;text-decoration:none;cursor:pointer;white-space:nowrap}
 .btn:hover{border-color:var(--teal);color:var(--ink)}
@@ -165,7 +165,7 @@ nav.main .navddp a[aria-current="page"]{box-shadow:none;background:rgba(255,255,
 .acts li{display:grid;grid-template-columns:minmax(150px,1fr) repeat(3,96px) minmax(0,2.2fr);gap:4px 16px;align-items:baseline;padding:10px 0;border-top:1px solid var(--line2);font-size:13px;font-variant-numeric:tabular-nums}
 .acts li .v{text-align:right;font-weight:700;color:var(--ink)}
 .acts li .v small{display:none}
-.acts li.hd{border-top:0;padding:6px 0 4px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text)}
+.acts li.hd{border-top:0;padding:6px 0 4px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:none;color:var(--text)}
 .acts li.hd .v{font-weight:700;color:var(--text)}
 .acts li a{font-weight:700;color:var(--ink);text-decoration:none;font-size:14px;padding:6px 0;margin:-6px 0}
 .acts li a:hover{text-decoration:underline}
@@ -210,7 +210,7 @@ nav.main .navddp a[aria-current="page"]{box-shadow:none;background:rgba(255,255,
 .need h2{margin-bottom:10px}
 .tiers{display:grid;grid-template-columns:repeat(var(--n,3),minmax(0,1fr));gap:14px}
 .tier{display:flex;flex-direction:column;gap:8px;min-width:0}
-.tier .th{border-top:4px solid var(--c);padding-top:6px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+.tier .th{border-top:4px solid var(--c);padding-top:6px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:none;color:var(--ink)}
 .empty{margin:0;padding:12px;border:1px dashed var(--line);border-radius:12px;color:var(--text);font-size:13px}
 .card{display:flex;flex-direction:column;gap:8px;width:100%;text-align:left;padding:12px;border-radius:12px;background:var(--surface);border:1px solid var(--line);cursor:pointer}
 .card:hover{border-color:var(--teal);box-shadow:0 2px 8px rgba(57,74,88,.1)}
@@ -223,11 +223,11 @@ nav.main .navddp a[aria-current="page"]{box-shadow:none;background:rgba(255,255,
 .cinfo{display:flex;flex-direction:column;gap:2px;min-width:0}
 .cinfo .nm{font:700 15px/1.25 var(--display);color:var(--ink)}
 .cinfo .sp{font-size:12px;color:var(--text)}
-.cinfo .kind{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text)}
+.cinfo .kind{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:none;color:var(--text)}
 .pr{display:flex;flex-direction:column;gap:8px;font-size:13px;font-variant-numeric:tabular-nums;border-top:1px solid var(--line2);padding-top:8px}
 .nums{display:grid;grid-template-columns:repeat(var(--n,3),minmax(0,1fr));gap:8px}
 .nums > span{display:flex;flex-direction:column;gap:1px;min-width:0}
-.nums small{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--text);white-space:nowrap}
+.nums small{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:none;color:var(--text);white-space:nowrap}
 .nums b{font:700 15px/1.2 var(--display);color:var(--ink)}
 .nums i{font-style:normal;color:var(--text)}
 .pr .list{font-weight:700;color:var(--ink)}
@@ -334,7 +334,7 @@ table.pt{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;fon
 .gx{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)}
 .gx .gg{display:grid;grid-template-columns:minmax(110px,240px) minmax(0,1fr) minmax(0,1fr)}
 .gx .gh{padding:10px 12px;font-size:12px;font-weight:700;color:var(--ink)} .gx .gh.b{color:var(--teal);text-align:right;border-right:1px solid var(--field)}
-.gx .gm{grid-column:1/-1;padding:8px 12px;background:var(--sunk);font:700 12px/1.3 var(--display);letter-spacing:.04em;text-transform:uppercase;color:var(--ink)}
+.gx .gm{grid-column:1/-1;padding:8px 12px;background:var(--sunk);font:700 12px/1.3 var(--display);letter-spacing:.04em;text-transform:none;color:var(--ink)}
 .gx .gc{display:flex;flex-direction:column;justify-content:center;padding:10px 12px;border-top:1px solid var(--line2)}
 .gx .gc a{font-size:14px;font-weight:600;line-height:1.3;color:var(--ink);text-decoration:none} .gx .gc a:hover,.gx .gl a:hover,.gx .gpn a:hover{text-decoration:underline;color:var(--teal)}
 .gx .gc:has(.gcb){padding:0} .gx .gcb{all:unset;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;width:100%;height:100%;padding:10px 12px;cursor:pointer}
@@ -367,10 +367,10 @@ table.pt{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;fon
   .sumt tbody th,.sumt td.rs{grid-column:1/-1}
   .sumt td.num{text-align:left}
   .sumt tr.dg th{border:0;padding:0;display:block}
-  .sumt td[data-l]::before{content:attr(data-l);display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:var(--text)}
+  .sumt td[data-l]::before{content:attr(data-l);display:block;font-size:11px;font-weight:700;text-transform:none;letter-spacing:.02em;color:var(--text)}
 }
 .rsec2{display:flex;flex-direction:column;gap:10px}
-.cgrp{margin-top:8px;padding-top:10px;border-top:1px solid var(--line2);font:700 13px/1.2 var(--display);letter-spacing:.03em;text-transform:uppercase;color:var(--ink)}
+.cgrp{margin-top:8px;padding-top:10px;border-top:1px solid var(--line2);font:700 13px/1.2 var(--display);letter-spacing:.03em;text-transform:none;color:var(--ink)}
 .cgrp:first-of-type{border-top:0;padding-top:0}
 .crow .n a{color:var(--ink);font-weight:700;text-decoration:none} .crow .n a:hover{text-decoration:underline}
 .a-todo{background:var(--surface);color:var(--coal);border:1px solid var(--field)}
@@ -387,7 +387,7 @@ details.rsec > :not(summary){margin:0 16px 14px}
 .side .mlab{display:block;margin:10px 0 2px;font-weight:700;color:var(--ink)}
 .chip.gbb{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c);font-weight:600}
 .why{display:flex;flex-direction:column;gap:4px}
-.why .lb,.cmpsel span{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--text)}
+.why .lb,.cmpsel span{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:none;color:var(--text)}
 .why ol,.cmpt ol{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px;font-size:14px;color:var(--ink)}
 .cmpsel{display:flex;flex-direction:column;gap:4px;max-width:420px}
 .cmpsel select{min-height:42px;padding:0 10px;border:1px solid var(--field);border-radius:10px;background:var(--surface);font:inherit;color:var(--ink)}
@@ -482,7 +482,7 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
 .slt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}
 .slt th,.slt td{padding:10px 12px;border-top:1px solid var(--line2);border-left:1px solid var(--line2);vertical-align:top;text-align:left}
 .slt tr > :first-child{border-left:0}
-.slt thead th{border-top:0;background:var(--sunk);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);box-shadow:inset 0 4px 0 var(--c,transparent)}
+.slt thead th{border-top:0;background:var(--sunk);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:none;color:var(--ink);box-shadow:inset 0 4px 0 var(--c,transparent)}
 .slt tbody th{font-weight:700;color:var(--ink)}
 .slt td.empty{background:var(--sunk)}
 .slt .es{display:inline-block;padding:3px 10px;border:2px dashed var(--coal);border-radius:8px;font-weight:700;font-size:12px;color:var(--coal)}
@@ -491,7 +491,7 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
 .slt .sp .nm{display:block;font-weight:700;color:var(--ink)}
 .slt a.sp:hover .nm{text-decoration:underline}
 .slt .sc{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
-.slt .lb{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text);margin-bottom:2px}
+.slt .lb{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:none;color:var(--text);margin-bottom:2px}
 .slt ul{margin:0;padding-left:16px}
 .cbox .cr.cheap{background:var(--danger-tint)} .cbox .cr.cheap a{color:var(--teal)} .tag.lo{background:var(--danger);color:var(--on-dark)} .tag.eq{background:var(--line2);color:var(--ink)} .tag.hi{background:var(--line2);color:var(--ink)} .olo{color:var(--danger);font-weight:600}
 .szbox{display:flex;flex-direction:column;gap:8px} .szt{width:100%;border-collapse:collapse;font-size:13px} .szt th,.szt td{padding:8px 10px;border-top:1px solid var(--line2);text-align:left;vertical-align:top}
@@ -532,7 +532,7 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
   .slt tbody tr:first-child{border-top:0}
   .slt tbody th{background:var(--sunk);border-top:0}
   .slt th,.slt td{border-left:0}
-  .slt td::before{content:attr(data-t);display:block;margin-bottom:6px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+  .slt td::before{content:attr(data-t);display:block;margin-bottom:6px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:none;color:var(--ink)}
   .rvgrid{grid-template-columns:1fr}
 }
 @media (max-width:700px){ .catcard{flex-wrap:wrap} .catcard .own{flex-basis:100%} }
@@ -590,7 +590,7 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
   .acts li{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 10px}
   .acts li a,.acts li .why{grid-column:1/-1}
   .acts li .v{text-align:left;display:flex;flex-direction:column}
-  .acts li .v small{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text)}
+  .acts li .v small{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:none;color:var(--text)}
   .acts li.hd{display:none}
   .kpis .v{font-size:22px}
 }
@@ -723,6 +723,29 @@ details.codes .small{display:block;margin-top:2px}
   .dhead h2{flex:1 1 calc(100% - 60px)}
   .dcol > .stats{order:-1}
 }
+/* round 3 (Paula, 27 Nov 2026): sentence case labels, filters as chips on the computer, compact phone header, brand flag colours */
+h3{text-transform:none;letter-spacing:0;font-size:13px}
+.nums small{text-transform:none;letter-spacing:0;font-size:12px;font-weight:600;color:var(--muted)}
+#dName:focus{outline:none}
+.a-investigate,.a-investigate.inv-hi,.a-investigate.inv-lo{background:var(--lime);color:var(--coal);border-color:var(--lime)}
+@media (min-width:1024px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .side{display:flex!important;position:static;max-height:none;flex-direction:row;flex-wrap:wrap;align-items:flex-start;gap:12px 28px;padding:14px 16px;overflow:visible}
+  .side .grp{flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px}
+  .side .grp h3{width:100%;margin-bottom:2px}
+  .side .grp input{width:260px}
+  .side .opt{width:auto;min-height:36px;padding:0 12px;border:1px solid var(--line);border-radius:999px;gap:8px;background:var(--surface)}
+  .side .opt[aria-pressed="true"]{background:var(--coal);border-color:var(--coal);color:var(--on-dark)}
+  .side .opt .n{margin-left:2px}
+  .side .grp > .small{width:100%}
+  .filterbtn{display:none!important}
+}
+@media (max-width:1023px){
+  .ph{flex-wrap:nowrap;align-items:center;gap:10px}
+  .ph > div:first-child{min-width:0}
+  .ph .sub{margin:0;font-size:13px}
+  .ph .row .btn.primary{min-height:44px;padding:0 14px}
+}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -810,7 +833,8 @@ const teamTag = id => S.team && !secOn(id) ? `<span class="tag sno" title="Not v
 const $ = s => document.querySelector(s);
 const esc = v => String(v==null?"":v).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num = v => { if(v==null||v==="") return null; const n = parseFloat(String(v).replace(/[^0-9.\-]/g,"")); return isFinite(n)?n:null; };
-const money = n => n==null ? "n/a" : "$" + n.toLocaleString("en-AU",{minimumFractionDigits: n%1?2:0, maximumFractionDigits:2});
+const moneyExact = n => n==null ? "n/a" : "$" + n.toLocaleString("en-AU",{minimumFractionDigits: n%1?2:0, maximumFractionDigits:2});
+const money = n => money0(n); /* one price format on screen: whole dollars (design refresh). Exports keep cents. */
 const money0 = n => n==null ? "n/a" : "$" + Math.round(n).toLocaleString("en-AU");
 const pct = n => n==null ? "n/a" : (Math.abs(n)<0.05 ? "0.0%" : (n>0?"+":"") + n.toFixed(1) + "%");
 const plural = (n, w) => n+" "+w+(n===1?"":"s");
@@ -1140,7 +1164,7 @@ function decisions(view, cats){
     const m=actMeta(k), arr=live.filter(x=>x.a.k===k).sort((a,b)=>rev(b)-rev(a));
     if(!arr.length) return "";
     return `<details style="--c:var(${m[2]})"><summary>${actPill(k)}<span class="n">${plural(arr.length,"product")}</span><span class="chev" aria-hidden="true">›</span></summary>
-      <ul><li class="hd" aria-hidden="true"><span>Product</span><span class="v">${LL("LIST")}</span><span class="v">Online avg</span><span class="v">Market avg</span><span>Reason</span></li>${arr.map(x=>`<li><a href="${pLink(view,x.p)}" data-pid="${esc(x.p.id)}">${esc(x.p.name)}</a>${priceCells(x.p,x.i,false).map(([k,v])=>`<span class="v"><small>${k}</small>${v==null?"n/a":v}</span>`).join("")}<span class="why">${esc(x.a.mine?(x.a.why||facts(x.p)):x.a.why)}${x.a.mine?` <span class="mine">Confirmed</span>`:""}</span></li>`).join("")}</ul></details>`;
+      <ul><li class="hd" aria-hidden="true"><span>Product</span><span class="v">${LL("Our LIST")}</span><span class="v">Online average</span><span class="v">Market avg</span><span>Reason</span></li>${arr.map(x=>`<li><a href="${pLink(view,x.p)}" data-pid="${esc(x.p.id)}">${esc(x.p.name)}</a>${priceCells(x.p,x.i,false).map(([k,v])=>`<span class="v"><small>${k}</small>${v==null?"n/a":v}</span>`).join("")}<span class="why">${esc(x.a.mine?(x.a.why||facts(x.p)):x.a.why)}${x.a.mine?` <span class="mine">Confirmed</span>`:""}</span></li>`).join("")}</ul></details>`;
   }).join("");
   return html ? `<div class="acts">${html}</div>` : `<p class="msg">Nothing to review.</p>`;
 }
@@ -1291,8 +1315,8 @@ function priceKey(cat, list){
   const lead = gs.length ? gs[0][0] || "the system LIST" : "";
   const shopTxt = !gs.length || (gs.length===1 && !gs[0][0]) ? "" : gs.length===1 ? ` LIST is ${lead}.` : ` LIST is ${lead}, except ${gs.slice(1).map(([k,a])=>`${nm(a)} (${k||"system LIST"})`).join("; ")}.`;
   const rows = [["LIST", `Our price${gstF()>1 ? ", with 10% GST added to compare" : ", GST-free"}.${shopTxt}`]];
-  if(cat.type!=="list") rows.push(["Online avg", "Average price retailers sell our product for on their websites."]);
-  rows.push(["Market avg", "Average online price of the QBR competitors. Each competitor counts once: its website prices are averaged first, then the competitors."]);
+  if(cat.type!=="list") rows.push(["Online average", "Average price retailers sell our product for on their websites."]);
+  rows.push(["Market average", "Average online price of the QBR competitors. Each competitor counts once: its website prices are averaged first, then the competitors."]);
   return `<dl class="pkey">${rows.map(([k,v])=>`<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>`;
 }
 function actGroup(attr, list, cur){
@@ -1322,9 +1346,9 @@ function nums(cells){ return `<span class="nums" style="--n:${cells.length}">${c
 function priceCells(p, i, leaving){
   const pr = i.propC;
   const szs = i.sz ? " "+({SM:"Small",S:"Single",D:"Double",Q:"Queen"}[i.sz==="from"?i.szLow:i.sz] || (i.sz==="from"?i.szLow:i.sz)) : "";
-  const c = [[LL(i.list==null&&pr!=null?"Proposed":"LIST"+szs), i.listC!=null?money0(i.listC):(pr!=null?money0(pr):null)]];
-  if(!leaving) c.push(["Online avg", i.o.n?money0(i.o.avg):null]);
-  c.push(["Market avg", i.m.n?money0(i.m.avg):null]);
+  const c = [[LL(i.list==null&&pr!=null?"Proposed":"Our LIST"+(szs?","+szs:"")), i.listC!=null?money0(i.listC):(pr!=null?money0(pr):null)]];
+  if(!leaving && i.o.n) c.push(["Online average", money0(i.o.avg)]);
+  c.push(["Market average", i.m.n?money0(i.m.avg):null]);
   return c;
 }
 function card(p, cid, leaving, open){
@@ -1359,7 +1383,7 @@ function renderDrawer(r){
   d.scrollTop = keepScroll;
   if(kf && kf.sel){ const n = d.querySelector(kf.scope+kf.sel); if(n){ n.focus({preventScroll:true}); if(kf.a!=null){ try{ n.setSelectionRange(kf.a, kf.b); }catch(_){} } } }
   document.body.classList.add("open-d"); document.body.style.overflow="hidden";
-  if(was!==p.id){ drawerFor=p.id; const x=$("#dClose"); if(x) x.focus(); }
+  if(was!==p.id){ drawerFor=p.id; const x=$("#dName"); if(x) x.focus({preventScroll:true}); }
 }
 function closeDrawer(){ const r=route(); if(r.pid) go(pageKey(r)); }
 const QOPTS = p => isLeave(p) ? ["runout","keep"] : ["keep","up","down","watch"];
@@ -1427,9 +1451,9 @@ function cmpBox(p){
     rows = [["", head(p), head(b)],
       ["GBB", gbbChips(p)||"n/a", gbbChips(b)||"n/a"],
       [LL("LIST"), a.listC!=null?money0(a.listC):"Not set", bi.listC!=null?money0(bi.listC):"Not set"],
-      ["Market avg", a.m.n?money0(a.m.avg):"n/a", bi.m.n?money0(bi.m.avg):"n/a"],
+      ["Market average", a.m.n?money0(a.m.avg):"n/a", bi.m.n?money0(bi.m.avg):"n/a"],
       ["Vs market", a.gap!=null?gapTxt(a.gap):"n/a", bi.gap!=null?gapTxt(bi.gap):"n/a"],
-      ...(vis("online_prices") ? [["Online avg", a.o.n?money0(a.o.avg):"n/a", bi.o.n?money0(bi.o.avg):"n/a"]] : []),
+      ...(vis("online_prices") ? [["Online average", a.o.n?money0(a.o.avg):"n/a", bi.o.n?money0(bi.o.avg):"n/a"]] : []),
       ...(S.team ? [["Units, last 12 months", units(p), units(b)], ["GM%", gmv(p), gmv(b)]] : []),
       ["Spec", esc(p.spec.join(" · "))||"n/a", esc(b.spec.join(" · "))||"n/a"],
       ["Selling points", why(p), why(b)],
@@ -1622,7 +1646,7 @@ function crBox(p){
       : `<span class="small">${[ans(saved0.business,"Business"), ans(saved0.product,"Product")].filter(Boolean).join(" · ") || "Not reviewed yet"}${saved0.cBusiness||saved0.cProduct?" · Should be "+esc([saved0.cBusiness,saved0.cProduct].filter(Boolean).join(" ")):""}${saved0.comment?" · "+esc(saved0.comment):""}</span>`}`;
     const sites = c.sites.map((x,si)=>({x, site:si+1})).filter(y=>y.x.site || y.x.url).map(({x, site})=>{
       const k = p.id+"|"+no+"|"+site, sv = crLine(p, no, site) || {}, d = Object.assign({}, sv, draft(k)||{});
-      return `<div class="crs"><div class="row" style="justify-content:space-between;gap:6px"><span class="small" style="color:var(--ink)">Website: ${esc(x.site||"Not named")}${num(x.p)!=null?" "+money(num(x.p)):""}${safeUrl(x.url)?` <a href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener">Open page</a>`:""}</span>${crSugNote(p, no, site)}</div>
+      return `<div class="crs"><div class="row" style="justify-content:space-between;gap:6px"><span class="small" style="color:var(--ink)">Website: ${esc(x.site||"Not named")}${num(x.p)!=null?" "+moneyExact(num(x.p)):""}${safeUrl(x.url)?` <a href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener">Open page</a>`:""}</span>${crSugNote(p, no, site)}</div>
         ${can ? `<div class="row" style="gap:8px">${CR_BTN(k,"website","Agree",d.website==="Agree",true)}${CR_BTN(k,"website","Disagree",d.website==="Disagree",true)}</div>${d.website==="Disagree" ? crRowForm(k, true, d) : ""}`
           : `<span class="small">${sv.website?"Website: "+esc(sv.website):"Not reviewed yet"}${sv.cBusiness||sv.cUrl?" · Should be "+esc([sv.cBusiness,sv.cUrl].filter(Boolean).join(" ")):""}${sv.comment?" · "+esc(sv.comment):""}</span>`}</div>`;
     }).join("");
@@ -1772,7 +1796,7 @@ function changeFlag(p){
   const d = r.map(c=>c.date).sort().pop();
   return [isNew?`<span class="pill flag" title="New competitor product found ${esc(fmtDate(d))}">New</span>`:"", isChg?`<span class="pill flag" title="Changed since the last check, ${esc(fmtDate(d))}">Changed</span>`:""].filter(Boolean).join(" ");
 }
-const chgText = c => c.type==="Price" ? `${esc(c.who||"")}${c.site?" at "+esc(c.site):""}${c.state?" ("+esc(c.state)+")":""}: ${money(num(c.old))} to ${money(num(c.new))}`
+const chgText = c => c.type==="Price" ? `${esc(c.who||"")}${c.site?" at "+esc(c.site):""}${c.state?" ("+esc(c.state)+")":""}: ${moneyExact(num(c.old))} to ${moneyExact(num(c.new))}`
   : `${esc(c.type)}${c.who?", "+esc(c.who):""}${c.site?" at "+esc(c.site):""}${c.detail?": "+esc(c.detail):""}`;
 function changeBox(p){
   const r = recentChanges(p); if(!r.length) return "";
@@ -1945,14 +1969,14 @@ function detail(p){
   const dates = [...new Set(p.comps.flatMap(c=>c.sites.map(x=>x.date)).concat(p.online.sites.map(x=>x.date)).filter(Boolean))].sort().map(fmtDate).join(", ");
   const exS = i.list!=null && gstF()>1 ? money(i.list)+" ex GST. " : "";
   const listS = i.propC!=null ? LL("Proposed")+" "+money0(i.propC)+(i.m.avg!=null?", "+Math.abs(gapOf(i.propC,i.m.avg)).toFixed(1)+"% "+(gapOf(i.propC,i.m.avg)<0?"below":"above")+" market":"") : "";
-  return `<div class="dhead"><h2 id="dName">${esc(p.name)}</h2><span class="small" id="dMsg" aria-live="polite"></span><button type="button" class="btn" data-export="${esc(p.id)}">${S.dl?"Export to Excel":"Copy for Excel"}</button>${S.canWrite?`<button type="button" class="btn primary" data-edit="${esc(p.id)}">Edit prices</button>`:""}<button type="button" class="xbtn" id="dClose" aria-label="Close details"><span class="xi" aria-hidden="true">×</span><svg class="bi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button></div>
+  return `<div class="dhead"><h2 id="dName" tabindex="-1">${esc(p.name)}</h2><span class="small" id="dMsg" aria-live="polite"></span><button type="button" class="btn" data-export="${esc(p.id)}">${S.dl?"Export to Excel":"Copy for Excel"}</button>${S.canWrite?`<button type="button" class="btn primary" data-edit="${esc(p.id)}">Edit prices</button>`:""}<button type="button" class="xbtn" id="dClose" aria-label="Close details"><span class="xi" aria-hidden="true">×</span><svg class="bi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button></div>
   <div class="dbody">${cmpBox(p)}<div class="dcol">
     <div class="dtop">${thumb(p)}<div style="display:flex;flex-direction:column;gap:8px;min-width:0">${(places||p.placements.length)?`<div class="row">${gbbChips(p)}${places}</div>`:""}${p.spec.length?`<span class="small">${esc(p.spec.join(" · "))}</span>`:""}${codesOf(p).length?`<details class="codes"><summary>Product codes (${codesOf(p).length})</summary><span class="small">${esc(codesOf(p).join(", "))}</span></details>`:""}${(p.flyers||[]).length?`<span class="row" style="gap:8px">${flyLinks(p)}</span>`:""}${reasonsOf(p)?`<div class="why"><span class="lb">Selling points${teamTag("why_buy")}</span><ol>${reasonsOf(p).map(r=>`<li>${esc(r)}</li>`).join("")}</ol></div>`:""}</div></div>
     ${cmpPick(p)}
     ${p.compFlag?`<div class="actbox" style="--c:var(--lime)"><div class="row"><span class="act a-watch">Check comparison</span></div><p>${esc(p.compFlag)}</p></div>`:""}
     <div class="stats">
       <div><span class="k">${LL(i.sz ? basisWord(i) : "Our LIST")}</span><span class="v">${i.listC!=null?money0(i.listC):"Not set"}</span><span class="s">${p.listSrc?esc(p.listSrc)+" ":""}${p.price.listNote?esc(p.price.listNote)+" ":""}${exS}${listS || (i.gapL!=null && i.basis==="online" ? "LIST "+(gapClass(i.gapL)==="inline"?"in line with market":Math.abs(i.gapL).toFixed(1)+"% "+(i.gapL<0?"below":"above")+" market") : "")}</span></div>
-      ${isLeave(p)||!vis("online_prices")?"":`<div><span class="k">Online average${teamTag("online_prices")}</span><span class="v">${i.o.n?money0(i.o.avg):"n/a"}</span><span class="s">${i.o.n?(i.o.n>1?"Average of "+i.o.n+" websites, "+money(i.o.low)+" to "+money(i.o.high):"1 website"):(p.online.sites.some(x=>num(x.p)!=null) && i.sz ? "No "+esc((SZ[i.sz]||i.sz).toLowerCase())+" online price. Our online prices are for other "+((p.sizes||{}).kind==="type"?"types":"sizes")+"." : "No online price yet")}</span></div>`}
+      ${isLeave(p)||!vis("online_prices")||!i.o.n?"":`<div><span class="k">Online average${teamTag("online_prices")}</span><span class="v">${i.o.n?money0(i.o.avg):"n/a"}</span><span class="s">${i.o.n?(i.o.n>1?"Average of "+i.o.n+" websites, "+money(i.o.low)+" to "+money(i.o.high):"1 website"):(p.online.sites.some(x=>num(x.p)!=null) && i.sz ? "No "+esc((SZ[i.sz]||i.sz).toLowerCase())+" online price. Our online prices are for other "+((p.sizes||{}).kind==="type"?"types":"sizes")+"." : "No online price yet")}</span></div>`}
       <div><span class="k">Market average</span><span class="v">${money0(i.m.avg)}</span><span class="s">${i.m.n?"Average of "+i.m.c+" competitor"+(i.m.c>1?"s":"")+(i.sz?", "+szName(i.sz, i.szLow)+" only":"")+", each counted once. "+i.m.n+" price"+(i.m.n>1?"s":"")+", "+money(i.m.low)+" to "+money(i.m.high):"No competitor prices"}</span></div>
       <div><span class="k">${i.basis==="online"?"Online vs market":"LIST vs market"}</span><span style="margin-top:4px">${i.gap!=null?gapPill(i.gap):`<span class="s">${i.m.n?"No price to compare":"No competitor prices"}</span>`}</span></div>
       ${(()=>{ const ne = (p.netEnd||null), nv = ne ? ne[0] : (s&&s.net!=null ? s.net : null), skR = i.sku ? skuOf(p) : null, rr = skR ? skR.rows.find(r=>r.k===skR.cfg.ref) : null, lr = rr && rr.list!=null ? rr.list : num(p.price.list); if(nv==null) return "";
@@ -2467,10 +2491,10 @@ function readEditor(){
 function updateCalc(){
   const p = readEditor(), m = market(p), o = onlineOf(p), our=num(p.price.list), prop=num(p.price.proposed), cost=num(p.price.cost), ourC=withGst(our), propC=withGst(prop);
   const sg = suggest(p); $("#aSug").innerHTML = `Flag: ${actPill(sg.k,p)} ${esc(sg.why)}`;
-  $("#calc").innerHTML = `<span>Market: <b>${m.n? money(m.low)+" to "+money(m.high) : "no prices yet"}</b>${m.n?` · avg <b>${money0(m.avg)}</b> from ${m.c} competitor${m.c>1?"s":""}, ${m.n} price${m.n>1?"s":""}`:""}</span>
+  $("#calc").innerHTML = `<span>Market: <b>${m.n? moneyExact(m.low)+" to "+moneyExact(m.high) : "no prices yet"}</b>${m.n?` · avg <b>${money0(m.avg)}</b> from ${m.c} competitor${m.c>1?"s":""}, ${m.n} price${m.n>1?"s":""}`:""}</span>
     <span>Online: <b>${o.n? money0(o.avg) : "no prices yet"}</b>${o.n?` from ${o.n} website${o.n>1?"s":""}`:""}</span>
     <span>Online vs market: ${gapOf(o.avg,m.avg)==null?"n/a":gapPill(gapOf(o.avg,m.avg))}</span>
-    ${ourC!=null&&gstF()>1?`<span>${LL("LIST")}: <b>${money(ourC)}</b></span>`:""}
+    ${ourC!=null&&gstF()>1?`<span>${LL("LIST")}: <b>${moneyExact(ourC)}</b></span>`:""}
     <span>LIST vs market: ${gapOf(ourC,m.avg)==null?"n/a":gapPill(gapOf(ourC,m.avg))}</span>
     ${prop!=null?`<span>Proposed vs market: ${gapOf(propC,m.avg)==null?"n/a":gapPill(gapOf(propC,m.avg))}</span>`:""}
     <span>GM% now: <b>${gmOf(our,cost)==null?"n/a":gmOf(our,cost).toFixed(1)+"%"}</b></span>
@@ -2536,7 +2560,7 @@ async function saveQuick(pid, clear){
   const note = ($("#qNote")||{value:""}).value.trim(), propEl = $("#qProp");
   const prop = propEl && !propEl.closest("[hidden]") ? num(propEl.value) : undefined;
   const list = num(p.price.list);
-  if(!clear && prop!=null && list!=null && ((sel==="up" && prop<=list) || ((sel==="down"||sel==="runout") && prop>=list))){ msg.textContent = `${sel==="runout"?"Runout":"Proposed"} LIST should be ${sel==="up"?"above":"below"} the current ${money(list)}.`; return; }
+  if(!clear && prop!=null && list!=null && ((sel==="up" && prop<=list) || ((sel==="down"||sel==="runout") && prop>=list))){ msg.textContent = `${sel==="runout"?"Runout":"Proposed"} LIST should be ${sel==="up"?"above":"below"} the current ${moneyExact(list)}.`; return; }
   const body = JSON.parse(JSON.stringify(p)); delete body.id; body.updated = new Date().toISOString();
   if(clear) delete body.action;
   else { const old = p.action; body.action = {pick:sel, note, date:(old && old.pick===sel && old.note===note && old.date) ? old.date : today()}; if(prop!==undefined) body.price.proposed = prop; }
