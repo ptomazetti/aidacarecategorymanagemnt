@@ -562,6 +562,11 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 [hidden]{display:none!important}
+.visf{display:grid;gap:8px;margin-top:10px}
+.visr{display:flex;gap:10px;align-items:flex-start;font-size:14px;cursor:pointer}
+.visr input{margin-top:3px;width:18px;height:18px;flex:none}
+.visr > span{display:flex;flex-direction:column;gap:1px}
+.visr input:disabled + span{opacity:.75}
 </style>
 </head>
 <body>
@@ -576,6 +581,7 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
     <label class="stpick"><span class="sr">Customer state</span><select id="stSel" aria-label="Customer state"><option value="">All Australia</option><option>NSW</option><option>VIC</option><option>QLD</option><option>SA</option><option>WA</option><option>TAS</option><option>ACT</option><option>NT</option></select></label>
     <button type="button" class="btn menubtn" id="menuBtn" aria-expanded="false" aria-controls="nav">Menu</button>
     <nav class="main" id="nav" aria-label="Main"></nav>
+    <button type="button" class="btn" id="signIn" hidden onclick="CPB.openSignIn()">Team sign in</button>
     <button type="button" class="btn" id="signOut" hidden onclick="CPB.signOut()">Sign out</button>
   </div>
 </header>
@@ -596,6 +602,10 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
         <div class="fld"><label for="invU">Investigate if units down (%)</label><input id="invU" type="number" min="0" step="1"></div>
         <div class="fld"><label for="invG">Investigate if price gap over (%)</label><input id="invG" type="number" min="0" step="1"></div>
       </div>
+    </div>
+    <div class="sec"><h3>Visible to sales</h3>
+      <p class="small" style="margin-top:4px">Sales use the board without signing in. Ticked sections show to them, the rest stay team only. Cost, GM%, sales and our net prices to retailers are always team only.</p>
+      <div id="visForm" class="visf"></div>
     </div>
     <div class="ft"><span class="saved" id="sitesMsg"></span><button class="btn" type="button" id="sitesCancel">Cancel</button><button class="btn primary" type="button" id="sitesSave">Save</button></div>
   </div>
@@ -618,7 +628,7 @@ const PAULA_LIST = "LIST given by Paula, not on shop.aidacare.com.au.";
 const MATRIX_LIST = "LIST from the category GBB matrix sent on 26 Nov 2026.";
 const SYS_LIST = "LIST is the system list price on invoices, Oct 2025 to Oct 2026.";
 /* Product data comes from the database: item codes (product_codes), flyers (product_flyers), Aspire or not (products.is_aspire). */
-const flyLinks = p => (p.flyers||[]).map(f=>{ const n=f.toLowerCase(); const l = /youth/.test(n)?"Youth flyer":/junior/.test(n)?"Junior flyer":/range|collection/.test(n)?"Range brochure":/brochure/.test(n)?"Brochure":"Flyer"; return `<a class="flyl" href="${esc(f)}" target="_blank" rel="noopener">${l} (PDF)</a>`; }).join("");
+const flyLinks = p => (vis("flyers") ? (p.flyers||[]) : []).map(f=>{ const n=f.toLowerCase(); const l = /youth/.test(n)?"Youth flyer":/junior/.test(n)?"Junior flyer":/range|collection/.test(n)?"Range brochure":/brochure/.test(n)?"Brochure":"Flyer"; return `<a class="flyl" href="${esc(f)}" target="_blank" rel="noopener">${l} (PDF)</a>`; }).join("");
 const codesOf = p => (p && p.codes) || [];
 const isAspire = p => !!(p && p.aspire);
 const brandOk = p => !S.ours || (S.ours==="aspire") === isAspire(p);
@@ -810,6 +820,12 @@ const current = () => [...S.prods.values()].filter(p=>!isLeave(p));
 function catOf(id){ return S.cats.find(c=>c.id===id); }
 /* Discontinued products (products.discontinued) are only on the Discontinued page. */
 const isLeave = p => !!(p && p.discontinued);
+/* One board for everyone (Paula, 27 Nov 2026). Sales use it without signing in; the team signs in and sees everything.
+   Each section below has a "Visible to sales" switch in Main competitors and settings. The database applies the same switch,
+   so a hidden section never reaches a signed-out browser. Cost, GM%, sales and our net prices to retailers are always team only. */
+let SECTIONS = [];
+const vis = id => !!S.team || !!(SECTIONS.find(x=>x.id===id)||{}).visible;
+const seeOnline = () => vis("online_prices"), seeDec = () => vis("decisions");
 const catMgr = c => !c ? "paula" : (c.mgr || (c.owner ? String(c.owner).toLowerCase() : "paula"));
 const mgrCats = id => S.cats.filter(c=>catMgr(c)===id);
 const mgrOf = id => MGRS.find(m=>m.id===id);
@@ -865,13 +881,12 @@ function pLink(view, p){ return view==="cat" ? `#cat/${esc(p.cat)}/${esc(p.id)}`
 
 /* ---------- render ---------- */
 function renderNav(r){
-  const items = [["home","Home",r.v==="home"]].concat(MGRS.map(m=>[`mgr/${m.id}`, m.name.split(" ")[0], (r.v==="mgr" && r.mgr===m.id) || (r.v==="cat" && catMgr(catOf(r.cat))===m.id) || (r.v==="grp" && grpMgr(grpOf(r.grp))===m.id)])).concat([["table","Summary",r.v==="table"],["report","Report",r.v==="report"],["states","States",r.v==="states"],["discontinued","Discontinued",r.v==="discontinued"]]);
+  const items = [["home","Home",r.v==="home"]].concat(MGRS.map(m=>[`mgr/${m.id}`, m.name.split(" ")[0], (r.v==="mgr" && r.mgr===m.id) || (r.v==="cat" && catMgr(catOf(r.cat))===m.id) || (r.v==="grp" && grpMgr(grpOf(r.grp))===m.id)])).concat([["table","Summary",r.v==="table"]], S.team?[["report","Report",r.v==="report"]]:[], [["states","States",r.v==="states"],["discontinued","Discontinued",r.v==="discontinued"]]);
   $("#nav").innerHTML = items.map(([h,t,on])=>`<a href="#${esc(h)}" ${on?'aria-current="page"':""}>${esc(t)}</a>`).join("");
 }
 function render(){
   if(!S.got.c || !S.got.p || !S.got.r) return;
-  if(!S.team){ renderSales(); return; }
-  { const h=document.getElementById("svHost"); if(h) h.hidden=true; const b=$("#bar"), a=$("#app"); if(b) b.style.display=""; if(a) a.style.display=""; }
+  { const r0 = route(); if(!S.team && (r0.v==="report" || (r0.v==="summary" && !seeDec()))){ go("home"); return; } }
   if(!S.prods.size){ $("#app").innerHTML = `<div class="msg">No products are loaded yet.</div>`; return; }
   const r = route();
   lastView = r.v+"|"+(r.cat||r.grp||r.mgr||"");
@@ -891,6 +906,7 @@ function render(){
   else if(r.v==="states") $("#app").innerHTML = renderStates();
   else if(r.v==="discontinued") $("#app").innerHTML = renderDisc();
   if(S.state && r.v!=="states") $("#app").insertAdjacentHTML("afterbegin", stBanner());
+  if(S.authNote) $("#app").insertAdjacentHTML("afterbegin", `<div class="stbar" role="status">${esc(S.authNote)}</div>`);
   const ss = $("#stSel"); if(ss && ss.value!==(S.state||"")) ss.value = S.state||"";
   if(keep==="q"||keep==="tq"||/^rv-/.test(keep||"")){ const el=document.getElementById(keep); if(el){ el.focus(); try{ el.setSelectionRange(caret,caret); }catch(_){} } }
   renderDrawer(r);
@@ -911,7 +927,7 @@ function decisions(view, cats){
     const m=actMeta(k), arr=live.filter(x=>x.a.k===k).sort((a,b)=>rev(b)-rev(a));
     if(!arr.length) return "";
     return `<details style="--c:var(${m[2]})"><summary>${actPill(k)}<span class="n">${plural(arr.length,"product")}</span><span class="chev" aria-hidden="true">›</span></summary>
-      <ul><li class="hd" aria-hidden="true"><span>Product</span><span class="v">${LL("LIST")}</span><span class="v">Online avg</span><span class="v">Market avg</span><span>Reason</span></li>${arr.map(x=>`<li><a href="${pLink(view,x.p)}" data-pid="${esc(x.p.id)}">${esc(x.p.name)}</a>${priceCells(x.p,x.i,false).map(([k,v])=>`<span class="v"><small>${k}</small>${v==null?"n/a":v}</span>`).join("")}<span class="why">${esc(x.a.mine?(x.a.why||facts(x.p)):x.a.why)}${x.a.mine?` <span class="mine">Confirmed</span>`:""}</span></li>`).join("")}</ul></details>`;
+      <ul><li class="hd" aria-hidden="true"><span>Product</span><span class="v">${LL("LIST")}</span>${seeOnline()?`<span class="v">Online avg</span>`:""}<span class="v">Market avg</span><span>Reason</span></li>${arr.map(x=>`<li><a href="${pLink(view,x.p)}" data-pid="${esc(x.p.id)}">${esc(x.p.name)}</a>${priceCells(x.p,x.i,false).map(([k,v])=>`<span class="v"><small>${k}</small>${v==null?"n/a":v}</span>`).join("")}<span class="why">${esc(x.a.mine?(x.a.why||facts(x.p)):x.a.why)}${x.a.mine?` <span class="mine">Confirmed</span>`:""}</span></li>`).join("")}</ul></details>`;
   }).join("");
   return html ? `<div class="acts">${html}</div>` : `<p class="msg">Nothing to review.</p>`;
 }
@@ -971,18 +987,18 @@ function renderHome(){
     ${tile("above", T.above, "Above market", `more than ${band()}% over`)}
     ${tile("inline", T.inline, "In line", `within ${band()}%`)}
     ${tile("below", T.below, "Below market", `more than ${band()}% under`)}
-    ${tile("review", T.review, "To review", `${L.g}%+ from market or units down ${L.u}%+`)}
+    ${seeDec()?tile("review", T.review, "To review", `${L.g}%+ from market or units down ${L.u}%+`):""}
   </div>${T.none?`<p class="small">${plural(T.none,"product")} with no competitor price yet.</p>`:""}`;
   const mgrs = MGRS.map(m=>{ const cats = mgrCats(m.id);
     const rows = mgrEntries(m.id).filter(e=>e.g || e.c.type!=="list" || prodsIn(e.c.id).length).map(e=>{
       if(e.g){ const list=grpProds(e.g), h=heroOf(list), n=posCount(list);
         const im = `<span class="im">${h?`<img src="${esc(h.img)}" alt="" loading="lazy">`:""}</span>`;
-        return `<a class="mcat" href="#grp/${esc(e.g.id)}">${im}<span><span class="ln"><span class="nm">${esc(e.g.name)}</span><span>${subTxt(grpCats(e.g).length)} · ${plural(list.length,"product")}${n.review?` · <b class="rv">${n.review} to review</b>`:""}</span></span>${posBar(n)}</span></a>`; }
+        return `<a class="mcat" href="#grp/${esc(e.g.id)}">${im}<span><span class="ln"><span class="nm">${esc(e.g.name)}</span><span>${subTxt(grpCats(e.g).length)} · ${plural(list.length,"product")}${n.review&&seeDec()?` · <b class="rv">${n.review} to review</b>`:""}</span></span>${posBar(n)}</span></a>`; }
       const c=e.c, list=prodsIn(c.id), h=heroOf(list);
       const im = `<span class="im">${h?`<img src="${esc(h.img)}" alt="" loading="lazy">`:""}</span>`;
       if(c.type==="list") return `<a class="mcat" href="#cat/${esc(c.id)}">${im}<span><span class="ln"><span class="nm">${esc(c.name)}</span><span>${plural(list.length,"product")}</span></span></span></a>`;
       const n = posCount(list);
-      return `<a class="mcat" href="#cat/${esc(c.id)}">${im}<span><span class="ln"><span class="nm">${esc(c.name)}</span><span>${plural(list.length,"product")}${n.review?` · <b class="rv">${n.review} to review</b>`:""}</span></span>${posBar(n)}</span></a>`; }).join("");
+      return `<a class="mcat" href="#cat/${esc(c.id)}">${im}<span><span class="ln"><span class="nm">${esc(c.name)}</span><span>${plural(list.length,"product")}${n.review&&seeDec()?` · <b class="rv">${n.review} to review</b>`:""}</span></span>${posBar(n)}</span></a>`; }).join("");
     return `<div class="mgr"><a class="mh" href="#mgr/${m.id}">${esc(m.name)}<span aria-hidden="true">›</span></a>${rows || (m.todo.length ? "" : `<p class="small">No categories on the board yet.</p>`)}${m.todo.length?`<p class="small todo">Not on the board yet: ${m.todo.map(esc).join(", ")}</p>`:""}</div>`; }).join("");
   /* Biggest gap above and below market in each category, as bars on one scale: below market to the left, above to the right.
      Products marked "Check comparison" are left out. */
@@ -1018,13 +1034,13 @@ function renderHome(){
   return `<h1 class="sr">Category Pricing Board</h1>
   <section class="hsec" aria-labelledby="mgrH"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 id="mgrH">By category manager</h2><span class="legend"><i class="above"></i>Above <i class="inline"></i>In line <i class="below"></i>Below <i class="none"></i>No market price</span></div><div class="mgrs">${mgrs}</div></section>
   ${gapHtml}
-  <p class="foot"><button type="button" class="linkbtn" id="editSites">Main competitors and settings</button></p>`;
+  ${S.team?`<p class="foot"><button type="button" class="linkbtn" id="editSites">Main competitors and settings</button></p>`:""}`;
 }
 function renderMgr(id){
   const m = mgrOf(id), cats = mgrCats(id), view = "mgr/"+id;
   return `<div class="ph"><div>${backBtn()}<h1>${esc(m.name)}</h1></div>${cats.length ? `<div class="row"><span class="small" id="mgrMsg" aria-live="polite"></span>${S.dl?`<button type="button" class="btn primary" id="dlMgr" data-mgr="${esc(id)}">Export to Excel</button>`:`<button type="button" class="btn" id="copyMgr" data-mgr="${esc(id)}">Copy for Excel</button>`}</div>` : ""}</div>
   <section aria-labelledby="catH" style="display:flex;flex-direction:column;gap:10px"><h2 id="catH">Categories</h2>${cats.length?`<div class="cats">${mgrEntries(id).filter(e=>e.g||e.c.type!=="list"||prodsIn(e.c.id).length).map(e=>e.g?grpCard(e.g):catCard(e.c)).join("")}</div>`:(m.todo.length?"":`<p class="msg">No categories on the board yet.</p>`)}${m.todo.length?`<p class="small">Not on the board yet: ${m.todo.map(esc).join(", ")}</p>`:""}</section>
-  ${cats.some(c=>c.type!=="list")?`<section aria-labelledby="decH" style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 id="decH">To review</h2>${(()=>{ const n=summaryRows().length; return `<a href="#summary" class="tlink">${n?n+" decision"+(n>1?"s":"")+" saved":"Saved decisions"}</a>`; })()}</div>${decisions(view, cats)}</section>`:""}`;
+  ${seeDec() && cats.some(c=>c.type!=="list")?`<section aria-labelledby="decH" style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 id="decH">To review</h2>${(()=>{ const n=summaryRows().length; return `<a href="#summary" class="tlink">${n?n+" decision"+(n>1?"s":"")+" saved":"Saved decisions"}</a>`; })()}</div>${decisions(view, cats)}</section>`:""}`;
 }
 
 function catMatch(p){ const q=S.q.trim().toLowerCase(); return matchFilter(p,S.f) && brandOk(p) && (!S.act || actionOf(p).k===S.act) && (!S.brand || compsOf(p).some(c=>brandHit(c.name,S.brand))) && (!q || hay(p).includes(q)) && (!S.kind || p.kind===S.kind); }
@@ -1061,11 +1077,12 @@ function priceKey(cat, list){
   const lead = gs.length ? gs[0][0] || "the system LIST" : "";
   const shopTxt = !gs.length || (gs.length===1 && !gs[0][0]) ? "" : gs.length===1 ? ` LIST is ${lead}.` : ` LIST is ${lead}, except ${gs.slice(1).map(([k,a])=>`${nm(a)} (${k||"system LIST"})`).join("; ")}.`;
   const rows = [["LIST", `Our price${gstF()>1 ? ", with 10% GST added to compare" : ", GST-free"}.${shopTxt}`]];
-  if(cat.type!=="list") rows.push(["Online avg", "Average price retailers sell our product for on their websites."]);
+  if(cat.type!=="list" && seeOnline()) rows.push(["Online avg", "Average price retailers sell our product for on their websites."]);
   rows.push(["Market avg", "Average online price of the QBR competitors. Each competitor counts once: its website prices are averaged first, then the competitors."]);
   return `<dl class="pkey">${rows.map(([k,v])=>`<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>`;
 }
 function actGroup(attr, list, cur){
+  if(!seeDec()) return "";
   const used = ACTS.filter(a=>list.some(p=>actionOf(p).k===a[0]));
   if(used.length<2 && !cur) return "";
   return `<div class="grp" role="group" aria-label="Action"><h3>Flag or decision</h3>${used.map(a=>{ const n=list.filter(p=>actionOf(p).k===a[0]).length;
@@ -1079,7 +1096,7 @@ function sideMenu(cat, list){
     const kinds=[...new Set(list.map(p=>p.kind).filter(Boolean))];
     extra = `<div class="grp" role="group" aria-label="Product type"><h3>Type</h3>${kinds.map(t=>opt("data-kind",t,t,list.filter(p=>p.kind===t).length,S.kind===t)).join("")}</div>`;
   } else {
-    extra = `${(cat.mainComps||[]).length?`<div class="grp" role="group" aria-label="Main competitors"><h3>Competitor brand</h3>${cat.mainComps.map(b=>{ const n=list.filter(p=>compsOf(p).some(c=>brandHit(c.name,b))).length; return (n||S.brand===b) ? opt("data-brand",b,b,n,S.brand===b) : ""; }).join("")}<p class="small">${esc(cat.mainCompsRef||"")} <button type="button" class="linkbtn" id="editSites">Edit</button></p></div>`:""}`;
+    extra = `${(cat.mainComps||[]).length?`<div class="grp" role="group" aria-label="Main competitors"><h3>Competitor brand</h3>${cat.mainComps.map(b=>{ const n=list.filter(p=>compsOf(p).some(c=>brandHit(c.name,b))).length; return (n||S.brand===b) ? opt("data-brand",b,b,n,S.brand===b) : ""; }).join("")}<p class="small">${esc(cat.mainCompsRef||"")} ${S.team?`<button type="button" class="linkbtn" id="editSites">Edit</button>`:""}</p></div>`:""}`;
   }
   return `<aside class="side" aria-label="Search and filter">
     <div class="grp"><h3><label for="q">Search</label></h3><input id="q" type="search" value="${esc(S.q)}" placeholder="Product or competitor" autocomplete="off"></div>
@@ -1093,7 +1110,7 @@ function priceCells(p, i, leaving){
   const pr = i.propC;
   const szs = i.sz ? " "+({SM:"Small",S:"Single",D:"Double",Q:"Queen"}[i.sz==="from"?i.szLow:i.sz] || (i.sz==="from"?i.szLow:i.sz)) : "";
   const c = [[LL(i.list==null&&pr!=null?"Proposed":"LIST"+szs), i.listC!=null?money0(i.listC):(pr!=null?money0(pr):null)]];
-  if(!leaving) c.push(["Online avg", i.o.n?money0(i.o.avg):null]);
+  if(!leaving && seeOnline()) c.push(["Online avg", i.o.n?money0(i.o.avg):null]);
   c.push(["Market avg", i.m.n?money0(i.m.avg):null]);
   return c;
 }
@@ -1103,11 +1120,11 @@ function card(p, cid, leaving, open){
   const top = leaving
     ? `<span class="cinfo"><span class="kind">${esc(p.kind||"")}</span><span class="nm">${esc(p.name)}</span><span class="sp">${esc(p.status||"")}</span></span>`
     : `<span class="cinfo"><span class="nm">${esc(p.name)}</span><span class="sp">${esc(p.spec.slice(0,2).join(" · "))}</span>${p.flag?`<span class="sp"><span class="pill flag">${esc(p.flag)}</span></span>`:""}</span>`;
-  return `<button type="button" class="card ${sel?"sel":""}" data-open="${esc(open || ("cat/"+cid+"/"+p.id))}" data-pid="${esc(p.id)}"><span class="ctop">${thumb(p)}${top}${k==="none"||leaving?"":`<span class="cact">${actPill(k,p)}</span>`}</span><span class="pr">${nums(priceCells(p,i,leaving))}${gl?`<span class="gl">${gl}</span>`:""}${p.compFlag?`<span class="cmpf">Check comparison</span>`:""}${reviewed(p)?`<span class="rvtag">Reviewed with David</span>`:""}</span></button>`;
+  return `<button type="button" class="card ${sel?"sel":""}" data-open="${esc(open || ("cat/"+cid+"/"+p.id))}" data-pid="${esc(p.id)}"><span class="ctop">${thumb(p)}${top}${k==="none"||leaving||!seeDec()?"":`<span class="cact">${actPill(k,p)}</span>`}</span><span class="pr">${nums(priceCells(p,i,leaving))}${gl?`<span class="gl">${gl}</span>`:""}${p.compFlag?`<span class="cmpf">Check comparison</span>`:""}${reviewed(p)&&vis("review")?`<span class="rvtag">Reviewed with David</span>`:""}</span></button>`;
 }
 
-/* Top 3 reasons people buy (product_selling_points table), Paula's categories only. From aidacare.com.au, shop.aidacare.com.au, the ComfiMotion and Activ+ manuals and brochure drafts, and Paula's confirmed specs (26 Nov 2026). */
-const reasonsOf = p => { const c=catOf(p.cat); return c && catMgr(c)==="paula" && (p.reasons||[]).length ? p.reasons : null; };
+/* Top 3 reasons people buy (product_selling_points table). Filled in for Paula's categories so far. From aidacare.com.au, shop.aidacare.com.au, the ComfiMotion and Activ+ manuals and brochure drafts, and Paula's confirmed specs (26 Nov 2026). */
+const reasonsOf = p => vis("why_buy") && (p.reasons||[]).length ? p.reasons : null;
 const tierCol = t => (TIERS.find(x=>x[0]===t)||[])[1] || "--line";
 const gbbChips = p => p.placements.map(pl=>`<span class="chip gbb" style="--c:var(${tierCol(pl.tier)})">${esc(pl.tier)} · ${esc(pl.need)}</span>`).join("");
 /* ---------- drawer ---------- */
@@ -1214,6 +1231,8 @@ function cmpBox(p){
       ["Spec", esc(p.spec.join(" · "))||"n/a", `<span class="small">Not on the board yet</span>`],
       ["Why people buy it", why(p), `<span class="small">Not on the board</span>`]];
   }
+  const hideRow = l => (l==="Online avg" && !seeOnline()) || ((l==="Units, last 12 months" || l==="GM%") && !S.team) || (l==="Decision" && !seeDec()) || (l==="Why people buy it" && !vis("why_buy"));
+  rows = rows.filter(([l])=>!hideRow(l));
   return `<section class="cmpw" aria-labelledby="cmpH"><div class="row" style="justify-content:space-between;align-items:center"><h3 id="cmpH">${esc(p.name)} vs ${esc(title)}</h3><button type="button" class="btn" id="cmpX">Close comparison</button></div><table class="cmpt"><tbody>${rows.map(([l,x,y],ri)=>`<tr${ri===0?' class="hd"':""}><th scope="row">${l}</th><td>${x}</td><td>${y}</td></tr>`).join("")}</tbody></table></section>`;
 }
 /* ---------- product review with David: agree the competitors ---------- */
@@ -1312,31 +1331,31 @@ function detail(p){
     return l!=null ? gapOf(num(x.p), l) : null; };
   const nCheap = onSort.filter(x=>{ const g=vsL(x); return g!=null && g < -0.5; }).length;
   const oTag = x => { const g=vsL(x); return g==null ? "" : g < -0.5 ? `<span class="tag lo">${Math.abs(g).toFixed(0)}% below our LIST</span>` : g <= 0.5 ? `<span class="tag eq">Same as LIST</span>` : `<span class="tag hi">${g.toFixed(0)}% above LIST</span>`; };
-  const ours = (isLeave(p) || !onRows.length) ? "" : `<div style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between;align-items:baseline"><h3>Our products in other websites</h3><span class="small${nCheap?" olo":""}">${i.listC==null?"No LIST price to compare":nCheap?`Cheaper than our LIST on ${nCheap} of ${onSort.length} website${onSort.length>1?"s":""}`:"No website below our LIST"}</span></div><div class="cbox ours"><div class="ch">Aspire ${esc(p.name)}</div>${onSort.map(x=>{ const g=vsL(x); return site(x,false,p.id,oTag(x)+stTag(x), [g!=null && g < -0.5 ? "cheap" : "", siteOK(x)?"":"na"].filter(Boolean).join(" ")); }).join("")}</div></div>`;
+  const ours = (isLeave(p) || !onRows.length || !seeOnline()) ? "" : `<div style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between;align-items:baseline"><h3>Our products in other websites</h3><span class="small${nCheap?" olo":""}">${i.listC==null?"No LIST price to compare":nCheap?`Cheaper than our LIST on ${nCheap} of ${onSort.length} website${onSort.length>1?"s":""}`:"No website below our LIST"}</span></div><div class="cbox ours"><div class="ch">Aspire ${esc(p.name)}</div>${onSort.map(x=>{ const g=vsL(x); return site(x,false,p.id,oTag(x)+stTag(x), [g!=null && g < -0.5 ? "cheap" : "", siteOK(x)?"":"na"].filter(Boolean).join(" ")); }).join("")}</div></div>`;
   const dates = [...new Set(p.comps.flatMap(c=>c.sites.map(x=>x.date)).concat(p.online.sites.map(x=>x.date)).filter(Boolean))].map(fmtDate).join(", ");
   const exS = i.list!=null && gstF()>1 ? money(i.list)+" ex GST. " : "";
   const listS = i.propC!=null ? LL("Proposed")+" "+money0(i.propC)+(i.m.avg!=null?", "+Math.abs(gapOf(i.propC,i.m.avg)).toFixed(1)+"% "+(gapOf(i.propC,i.m.avg)<0?"below":"above")+" market":"") : "";
   return `<div class="dhead"><h2 id="dName">${esc(p.name)}</h2><span class="small" id="dMsg" aria-live="polite"></span><button type="button" class="btn" data-export="${esc(p.id)}">${S.dl?"Export to Excel":"Copy for Excel"}</button>${S.canWrite?`<button type="button" class="btn primary" data-edit="${esc(p.id)}">Edit prices</button>`:""}<button type="button" class="xbtn" id="dClose" aria-label="Close details">×</button></div>
   <div class="dbody">${cmpBox(p)}<div class="dcol">
-    <div class="dtop">${thumb(p)}<div style="display:flex;flex-direction:column;gap:8px;min-width:0">${(places||p.placements.length)?`<div class="row">${gbbChips(p)}${places}</div>`:""}${p.spec.length?`<span class="small">${esc(p.spec.join(" · "))}</span>`:""}${codesOf(p).length?`<span class="small">Codes: ${esc(codesOf(p).join(", "))}</span>`:""}${(p.flyers||[]).length?`<span class="row" style="gap:8px">${flyLinks(p)}</span>`:""}${reasonsOf(p)?`<div class="why"><span class="lb">Why people buy it</span><ol>${reasonsOf(p).map(r=>`<li>${esc(r)}</li>`).join("")}</ol></div>`:""}</div></div>
+    <div class="dtop">${thumb(p)}<div style="display:flex;flex-direction:column;gap:8px;min-width:0">${(places||p.placements.length)?`<div class="row">${gbbChips(p)}${places}</div>`:""}${p.spec.length?`<span class="small">${esc(p.spec.join(" · "))}</span>`:""}${codesOf(p).length?`<span class="small">Codes: ${esc(codesOf(p).join(", "))}</span>`:""}${flyLinks(p)?`<span class="row" style="gap:8px">${flyLinks(p)}</span>`:""}${reasonsOf(p)?`<div class="why"><span class="lb">Why people buy it</span><ol>${reasonsOf(p).map(r=>`<li>${esc(r)}</li>`).join("")}</ol></div>`:""}</div></div>
     ${cmpPick(p)}
     ${p.compFlag?`<div class="actbox" style="--c:var(--lime)"><div class="row"><span class="act a-watch">Check comparison</span></div><p>${esc(p.compFlag)}</p></div>`:""}
     <div class="stats">
       <div><span class="k">${LL(i.sz ? basisWord(i) : "Our LIST")}</span><span class="v">${i.listC!=null?money0(i.listC):"Not set"}</span><span class="s">${p.listSrc?esc(p.listSrc)+" ":""}${p.price.listNote?esc(p.price.listNote)+" ":""}${exS}${listS || (i.gapL!=null && i.basis==="online" ? "LIST "+(gapClass(i.gapL)==="inline"?"in line with market":Math.abs(i.gapL).toFixed(1)+"% "+(i.gapL<0?"below":"above")+" market") : "")}</span></div>
-      ${isLeave(p)?"":`<div><span class="k">Online average</span><span class="v">${i.o.n?money0(i.o.avg):"n/a"}</span><span class="s">${i.o.n?(i.o.n>1?"Average of "+i.o.n+" websites, "+money(i.o.low)+" to "+money(i.o.high):"1 website"):"No online price yet"}</span></div>`}
+      ${isLeave(p)||!seeOnline()?"":`<div><span class="k">Online average</span><span class="v">${i.o.n?money0(i.o.avg):"n/a"}</span><span class="s">${i.o.n?(i.o.n>1?"Average of "+i.o.n+" websites, "+money(i.o.low)+" to "+money(i.o.high):"1 website"):"No online price yet"}</span></div>`}
       <div><span class="k">Market average</span><span class="v">${money0(i.m.avg)}</span><span class="s">${i.m.n?"Average of "+i.m.c+" competitor"+(i.m.c>1?"s":"")+(i.sz?", "+szName(i.sz, i.szLow)+" only":"")+", each counted once. "+i.m.n+" price"+(i.m.n>1?"s":"")+", "+money(i.m.low)+" to "+money(i.m.high):"No competitor prices"}</span></div>
       <div><span class="k">${i.basis==="online"?"Online vs market":"LIST vs market"}</span><span style="margin-top:4px">${i.gap!=null?gapPill(i.gap):`<span class="s">${i.m.n?"No price to compare":"No competitor prices"}</span>`}</span></div>
-      ${(()=>{ const ne = (p.netEnd||null), nv = ne ? ne[0] : (s&&s.net!=null ? s.net : null), skR = i.sku ? skuOf(p) : null, rr = skR ? skR.rows.find(r=>r.k===skR.cfg.ref) : null, lr = rr && rr.list!=null ? rr.list : num(p.price.list); if(nv==null) return "";
+      ${(()=>{ const ne = (p.netEnd||null), nv = ne ? ne[0] : (s&&s.net!=null ? s.net : null), skR = i.sku ? skuOf(p) : null, rr = skR ? skR.rows.find(r=>r.k===skR.cfg.ref) : null, lr = rr && rr.list!=null ? rr.list : num(p.price.list); if(nv==null || !S.team) return "";
         return `<div><span class="k">Average sell price</span><span class="v">${money0(nv)}</span><span class="s">${ne?"End customers only, no wholesale, NP or intercompany. ":""}${lr!=null?Math.abs((nv/lr-1)*100).toFixed(0)+"% "+(nv<lr?"below":"above")+" LIST"+(i.sku?" ("+esc(SZ[(p.sizes||{}).ref]||"main")+")":"")+". ":""}${esc([ne ? Number(ne[1]).toLocaleString("en-AU")+" units" : s.units!=null ? Number(s.units).toLocaleString("en-AU")+" units" : "", ne ? "Nov 2025 to Oct 2026" : (s.netPeriod||s.period||"")].filter(Boolean).join(", "))}</span></div>`; })()}
-      ${gmTile?`<div><span class="k">${gmTile[0]}</span><span class="v">${gmTile[1]}</span><span class="s">${gmTile[2]}</span></div>`:""}
+      ${gmTile&&S.team?`<div><span class="k">${gmTile[0]}</span><span class="v">${gmTile[1]}</span><span class="s">${gmTile[2]}</span></div>`:""}
     </div>
-    ${actBox(p)}
+    ${seeDec()?actBox(p):""}
   </div><div class="dcol">
     ${ours}
     ${sizeBox(p, i)}
     <div style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between"><h3>Competitor prices</h3><span class="small">${dates?"Checked "+esc(dates):""}</span></div>${lanes}${comps||`<p class="small">No competitors listed.</p>`}</div>
-    ${prodReview(p)}
-    ${isLeave(p) ? "" : histBox(p)}
+    ${vis("review")?prodReview(p):""}
+    ${isLeave(p) || !vis("price_changes") ? "" : histBox(p)}
   </div></div>`;
 }
 
@@ -1353,12 +1372,13 @@ function rows(){
   });
 }
 function tableCols(){
-  const anyProp = current().some(p=>num(p.price.proposed)!=null);
-  const c = [["name","Product"],["action","Flag or decision"],["our",LL("LIST")]];
+  const anyProp = seeDec() && current().some(p=>num(p.price.proposed)!=null);
+  const c = [["name","Product"]].concat(seeDec()?[["action","Flag or decision"]]:[], [["our",LL("LIST")]]);
   if(anyProp) c.push(["prop",LL("Proposed LIST")]);
-  c.push(["onl","Online average"],["avg","Market average"],["gapL","LIST vs market"]);
+  if(seeOnline()) c.push(["onl","Online average"]);
+  c.push(["avg","Market average"],["gapL","LIST vs market"]);
   if(anyProp) c.push(["gapProp","Proposed vs market"]);
-  c.push(["gma","Actual GM%"]);
+  if(S.team) c.push(["gma","Actual GM%"]);
   return c;
 }
 function tableRows(){
@@ -1412,8 +1432,8 @@ function renderTable(){
   const sortOpts = [["cat","Category"]].concat(cols.filter(c=>c[0]!=="action"));
   const sortSel = `<label class="msort"><span>Sort by</span><select id="tsort">${sortOpts.map(([k,t])=>`<option value="${k}" ${S.sortKey===k?"selected":""}>${t}</option>`).join("")}</select></label>`;
   const mrow = x => { const i=info(x.p), lv=isLeave(x.p);
-    const ex = x.gma!=null?"Actual GM "+x.gma.toFixed(1)+"%":"";
-    return `<a class="mrow" href="${pLink("table",x.p)}" data-pid="${esc(x.p.id)}"><span class="ctop"><span class="nm">${esc(x.name)}</span>${x.action==="none"?"":`<span class="cact">${actPill(x.action,x.p)}</span>`}</span>${nums(priceCells(x.p,i,lv))}${i.gap!=null?`<span class="gl">${gapLine(i)}</span>`:""}${ex?`<span class="ex">${ex}</span>`:""}</a>`; };
+    const ex = x.gma!=null&&S.team?"Actual GM "+x.gma.toFixed(1)+"%":"";
+    return `<a class="mrow" href="${pLink("table",x.p)}" data-pid="${esc(x.p.id)}"><span class="ctop"><span class="nm">${esc(x.name)}</span>${x.action==="none"||!seeDec()?"":`<span class="cact">${actPill(x.action,x.p)}</span>`}</span>${nums(priceCells(x.p,i,lv))}${i.gap!=null?`<span class="gl">${gapLine(i)}</span>`:""}${ex?`<span class="ex">${ex}</span>`:""}</a>`; };
   let mbody = "";
   if(S.sortKey==="cat") S.cats.forEach(c=>{ const g=r.filter(x=>x.catId===c.id); if(g.length) mbody += `<h2 class="mgrp">${esc(c.name)}</h2>${g.map(mrow).join("")}`; });
   else mbody = r.map(mrow).join("");
@@ -1423,10 +1443,18 @@ function renderTable(){
     ${r.length?`${sortSel}<div class="tablewrap"><table class="pt">${head}${body}</table></div><div class="mlist">${mbody}</div>`:`<p class="msg">No products match. <button type="button" class="linkbtn" id="clearT2">Clear filters</button></p>`}
   </section></div>`;
 }
+/* Exports for a signed-out visitor leave out the columns they can't see. First row = headings. */
+function pubCols(arr){
+  if(S.team || !arr.length) return arr;
+  const dec = ["Action","Reason","Confirmed","Decision","Decided on","Flag or decision"], locked = ["GM% at LIST","Units last 12 months","Units change %","Net price per unit","Actual GM%"];
+  const drop = h => { h = String(h); return locked.includes(h) || (!seeDec() && (dec.includes(h) || /Proposed/.test(h))) || (!seeOnline() && /^Online|Online vs/.test(h)); };
+  const keep = arr[0].map((h,i)=>drop(h)?-1:i).filter(i=>i>=0);
+  return arr.map(r=>keep.map(i=>r[i]));
+}
 function tableData(r){
   const head = ["Product","Category","Action","Reason","Confirmed","Status",gstF()>1?"LIST ex GST":"LIST",gstF()>1?LL("LIST"):"LIST to compare",gstF()>1?"Proposed LIST ex GST":"Proposed LIST",gstF()>1?LL("Proposed LIST"):"Proposed LIST to compare","Online average","Online websites","Online low","Online high","Market average","Market low","Market high","Competitors","Competitor prices","Online vs market %","LIST vs market %","Online vs LIST %","Proposed vs market %","GM% at LIST","Units last 12 months","Units change %","Net price per unit","Actual GM%"];
   const f = v => v==null?"":(typeof v==="number"? (Math.round(v*100)/100) : String(v).replace(/[\t\n\r]/g," "));
-  return [head].concat(r.map(x=>[x.name,x.cat,actMeta(x.action)[1],x.actionWhy,x.actionBy,x.status,x.ourEx,x.our,x.propEx,x.prop,x.onl,x.onN,x.onLow,x.onHigh,x.avg,x.low,x.high,x.nc,x.n,x.gapO,x.gapL,x.oVsL,x.gapProp,x.gm,x.units,x.uchg,x.net,x.gma].map(f)));
+  return pubCols([head].concat(r.map(x=>[x.name,x.cat,actMeta(x.action)[1],x.actionWhy,x.actionBy,x.status,x.ourEx,x.our,x.propEx,x.prop,x.onl,x.onN,x.onLow,x.onHigh,x.avg,x.low,x.high,x.nc,x.n,x.gapO,x.gapL,x.oVsL,x.gapProp,x.gm,x.units,x.uchg,x.net,x.gma].map(f))));
 }
 /* Excel workbook for one manager: one tab per category. SheetJS loads only when asked. */
 const XLSX_SRC = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
@@ -1441,7 +1469,7 @@ function catSheetRows(c){
   prodsIn(c.id).forEach(p=>{
     const i=info(p), slot=p.placements.map(pl=>pl.need+", "+pl.tier).join("; "), cs=compsOf(p);
     const base=[p.name, slot, i.listC, i.m.n?i.m.avg:null, i.gapL!=null?i.gapL/100:null];
-    p.online.sites.filter(x=>num(x.p)!=null).forEach(x=>rows.push(base.concat(["Aspire online", null, null, x.site, num(x.p), x.note||"", fmtDate(x.date), safeUrl(x.url)])));
+    (seeOnline()?p.online.sites:[]).filter(x=>num(x.p)!=null).forEach(x=>rows.push(base.concat(["Aspire online", null, null, x.site, num(x.p), x.note||"", fmtDate(x.date), safeUrl(x.url)])));
     cs.forEach(cp=>{ const st=cp.sites.filter(x=>num(x.p)!=null), v=st.map(x=>num(x.p)), av=v.length?v.reduce((t,b)=>t+b,0)/v.length:null, g=gapOf(i.listC,av);
       if(!st.length) rows.push(base.concat([cp.name, null, null, "", null, "No price online", "", ""]));
       st.forEach(x=>rows.push(base.concat([cp.name, av, g!=null?g/100:null, x.site, num(x.p), x.note||"", fmtDate(x.date), safeUrl(x.url)]))); });
@@ -1541,24 +1569,24 @@ function productData(p){
   if(p.instead) row("Instead", p.instead);
   if(p.spec.length) row("Spec", p.spec.join("; "));
   row(LL("LIST"), i.listC, p.price.listNote||"");
-  if(i.propC!=null) row(LL("Proposed LIST"), i.propC);
-  if(cost!=null) row("Unit cost", cost, noSrc(p.price.costNote||""));
-  if(gmOf(i.list,cost)!=null) row("GM% at LIST", gmOf(i.list,cost));
-  if(s.units!=null){ row("Units", s.units, s.period||""); if(s.prior) row("Units last year", s.prior); if(unitChg(p)!=null) row("Units change %", unitChg(p)); if(s.net!=null) row("Net price per unit", s.net, s.netPeriod||""); if((p.netEnd||null)) row("Average sell price, end customers", (p.netEnd||null)[0], "No wholesale, NP or intercompany. Nov 2025 to Oct 2026"); if(s.gm!=null) row("Actual GM%", s.gm); if(s.source) row("Sales source", noSrc(s.source)); }
-  row("Online average", i.o.n?i.o.avg:null, i.o.n ? i.o.n+" website"+(i.o.n>1?"s":"") : "No online price");
+  if(i.propC!=null && seeDec()) row(LL("Proposed LIST"), i.propC);
+  if(cost!=null && S.team) row("Unit cost", cost, noSrc(p.price.costNote||""));
+  if(gmOf(i.list,cost)!=null && S.team) row("GM% at LIST", gmOf(i.list,cost));
+  if(s.units!=null && S.team){ row("Units", s.units, s.period||""); if(s.prior) row("Units last year", s.prior); if(unitChg(p)!=null) row("Units change %", unitChg(p)); if(s.net!=null) row("Net price per unit", s.net, s.netPeriod||""); if((p.netEnd||null)) row("Average sell price, end customers", (p.netEnd||null)[0], "No wholesale, NP or intercompany. Nov 2025 to Oct 2026"); if(s.gm!=null) row("Actual GM%", s.gm); if(s.source) row("Sales source", noSrc(s.source)); }
+  if(seeOnline()) row("Online average", i.o.n?i.o.avg:null, i.o.n ? i.o.n+" website"+(i.o.n>1?"s":"") : "No online price");
   row("Market average", i.m.n?i.m.avg:null, i.m.n ? i.m.c+" competitor"+(i.m.c>1?"s":"")+", "+i.m.n+" price"+(i.m.n>1?"s":"") : "No competitor prices");
-  row(LL("LIST")+" vs market %", i.gapL); row("Online vs market %", i.gapO); row("Online vs "+LL("LIST")+" %", i.oVsL);
-  row("Flag or decision", actMeta(a.k)[1], a.why||"");
+  row(LL("LIST")+" vs market %", i.gapL); if(seeOnline()){ row("Online vs market %", i.gapO); row("Online vs "+LL("LIST")+" %", i.oVsL); }
+  if(seeDec()) row("Flag or decision", actMeta(a.k)[1], a.why||"");
   if(p.compFlag) row("Check comparison", p.compFlag);
-  if(p.notes) row("Notes", p.notes);
+  if(p.notes && seeDec()) row("Notes", p.notes);
   R.push([]);
   row("Competitor", "Average price", LL("Our LIST")+" vs competitor %", "Prices found");
   compsOf(p).forEach(cp=>{ const v=cp.sites.map(x=>num(x.p)).filter(x=>x!=null); const av=v.length?v.reduce((t,b)=>t+b,0)/v.length:null; row(cp.name, av, gapOf(i.listC, av), v.length); });
   R.push([]);
   row("Who", "Website", "Price", "Note", "Checked", "Link");
-  p.online.sites.filter(x=>x.site||num(x.p)!=null).forEach(x=>row("Aspire "+p.name, x.site, num(x.p), x.note||"", x.date||"", safeUrl(x.url)));
+  (seeOnline()?p.online.sites:[]).filter(x=>x.site||num(x.p)!=null).forEach(x=>row("Aspire "+p.name, x.site, num(x.p), x.note||"", x.date||"", safeUrl(x.url)));
   compsOf(p).forEach(cp=>{ const rs=cp.sites.filter(x=>num(x.p)!=null); if(!rs.length) row(cp.name, "", null, "No price online"); rs.forEach(x=>row(cp.name, x.site, num(x.p), x.note||"", x.date||"", safeUrl(x.url))); });
-  const h=histOf(p); if(h.length){ R.push([]); row("Price change", "Who", "Website", "Old", "New", "Change %"); h.forEach(ch=>row(ch.date, ch.who||"", ch.site||"", num(ch.old), num(ch.new), gapOf(num(ch.new),num(ch.old)))); }
+  const h=vis("price_changes")?histOf(p):[]; if(h.length){ R.push([]); row("Price change", "Who", "Website", "Old", "New", "Change %"); h.forEach(ch=>row(ch.date, ch.who||"", ch.site||"", num(ch.old), num(ch.new), gapOf(num(ch.new),num(ch.old)))); }
   return R;
 }
 function toCsv(arr){ return "﻿" + arr.map(r=>r.map(v=>{ const s=String(v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }).join(",")).join("\r\n"); }
@@ -1677,13 +1705,14 @@ function renderSummary(){
   const uc = p => { const ch=unitChg(p); return ch==null ? "n/a" : pct(ch)+ucNote(p); };
   const ex = gstF()>1 ? " ex GST" : "";
   const row = x => { const pr=num(x.p.price.proposed);
-    return `<tr><th scope="row"><a href="${pLink("summary",x.p)}" data-pid="${esc(x.p.id)}">${esc(x.p.name)}</a><span class="small">${esc(x.c?x.c.name:"")}</span></th><td class="rs">${esc(x.a.why||"")}</td><td class="num" data-l="LIST${ex}">${x.i.list!=null?money(x.i.list):"Not set"}</td><td class="num" data-l="Proposed${ex}">${pr!=null?money(pr):"None"}</td><td class="num" data-l="Online avg">${x.i.o.n?money0(x.i.o.avg):"n/a"}</td><td class="num" data-l="Market avg">${x.i.m.n?money0(x.i.m.avg):"n/a"}</td><td class="num" data-l="Vs market">${x.i.gap!=null?gapTxt(x.i.gap):"n/a"}</td><td class="num" data-l="Units vs last year">${uc(x.p)}</td></tr>`; };
-  const groups = DORDER.map(k=>{ const g=R.filter(x=>x.a.k===k); if(!g.length) return ""; return `<tr class="dg"><th colspan="8">${actPill(k)} <span class="small">${g.length} product${g.length>1?"s":""}</span></th></tr>${g.map(row).join("")}`; }).join("");
+    return `<tr><th scope="row"><a href="${pLink("summary",x.p)}" data-pid="${esc(x.p.id)}">${esc(x.p.name)}</a><span class="small">${esc(x.c?x.c.name:"")}</span></th><td class="rs">${esc(x.a.why||"")}</td><td class="num" data-l="LIST${ex}">${x.i.list!=null?money(x.i.list):"Not set"}</td><td class="num" data-l="Proposed${ex}">${pr!=null?money(pr):"None"}</td>${seeOnline()?`<td class="num" data-l="Online avg">${x.i.o.n?money0(x.i.o.avg):"n/a"}</td>`:""}<td class="num" data-l="Market avg">${x.i.m.n?money0(x.i.m.avg):"n/a"}</td><td class="num" data-l="Vs market">${x.i.gap!=null?gapTxt(x.i.gap):"n/a"}</td>${S.team?`<td class="num" data-l="Units vs last year">${uc(x.p)}</td>`:""}</tr>`; };
+  const nCol = 6 + seeOnline() + !!S.team;
+  const groups = DORDER.map(k=>{ const g=R.filter(x=>x.a.k===k); if(!g.length) return ""; return `<tr class="dg"><th colspan="${nCol}">${actPill(k)} <span class="small">${g.length} product${g.length>1?"s":""}</span></th></tr>${g.map(row).join("")}`; }).join("");
   return `<div class="ph"><div>${backBtn()}<h1>Pricing decisions</h1><p class="sub">${R.length ? plural(R.length,"decision")+" so far" : "No decisions yet"}. ${S.settings.listGst==="free"?"All categories treated as GST-free":"LIST and proposed LIST"+ex+". Online and market prices include GST"}${lc?(S.settings.listGst==="free"?". Online prices checked ":", checked ")+esc(lcHi&&lcHi!==lc?fmtDate(lc)+" to "+fmtDate(lcHi):fmtDate(lc)):""}.</p></div><div class="row">${S.dl?`<button type="button" class="btn primary" id="dlSum">Export to Excel</button>`:""}<button type="button" class="btn" id="copySum">Copy for Excel</button></div></div>
   <p class="small" id="sumMsg" aria-live="polite"></p>
-  ${R.length ? `<div class="sumwrap"><table class="sumt"><thead><tr><th scope="col">Product</th><th scope="col">Reason</th><th scope="col" class="num">LIST${ex}</th><th scope="col" class="num">Proposed${ex}</th><th scope="col" class="num">Online avg</th><th scope="col" class="num">Market avg</th><th scope="col" class="num">Vs market</th><th scope="col" class="num">Units vs last year</th></tr></thead><tbody>${groups}</tbody></table></div>`
+  ${R.length ? `<div class="sumwrap"><table class="sumt"><thead><tr><th scope="col">Product</th><th scope="col">Reason</th><th scope="col" class="num">LIST${ex}</th><th scope="col" class="num">Proposed${ex}</th>${seeOnline()?`<th scope="col" class="num">Online avg</th>`:""}<th scope="col" class="num">Market avg</th><th scope="col" class="num">Vs market</th>${S.team?`<th scope="col" class="num">Units vs last year</th>`:""}</tr></thead><tbody>${groups}</tbody></table></div>`
     : `<p class="msg">No decisions yet. Open a flagged product and pick a decision. It will show here.</p>`}
-  ${(()=>{ const rv = liveProds().filter(reviewed); if(!rv.length) return "";
+  ${(()=>{ const rv = vis("review") ? liveProds().filter(reviewed) : []; if(!rv.length) return "";
     const by = k => r => prvEntries(r).filter(x=>x.k===k).map(x=>esc(x.name)+(x.note?` <span class="small">(${esc(x.note)})</span>`:"")).join("<br>");
     return `<section style="display:flex;flex-direction:column;gap:8px" aria-labelledby="prvH"><h2 id="prvH">Competitor review with David (${plural(rv.length,"product")})</h2><div class="sumwrap"><table class="sumt prvt"><thead><tr><th scope="col">Product</th><th scope="col">Agreed</th><th scope="col">Remove</th><th scope="col">Replace</th><th scope="col">Competitors to add</th><th scope="col">Other changes</th></tr></thead><tbody>${rv.map(p=>{ const r=p.review, c=catOf(p.cat), nb=prvEntries(r).filter(x=>!x.k);
       return `<tr><th scope="row"><a href="${pLink("summary",p)}" data-pid="${esc(p.id)}">${esc(p.name)}</a><span class="small">${esc(c?c.name:"")}${r.date?", "+esc(fmtDate(r.date)):""}${r.applied&&r.applied.date?", applied "+esc(fmtDate(r.applied.date)):""}</span></th><td data-l="Agreed">${by("agree")(r)}</td><td data-l="Remove">${by("remove")(r)}</td><td data-l="Replace">${by("replace")(r)}</td><td class="rs" data-l="To add">${esc(r.add||"")}</td><td class="rs" data-l="Other">${esc([r.other||"", ...nb.map(x=>x.name+": "+x.note)].filter(Boolean).join(". "))}</td></tr>`; }).join("")}</tbody></table></div></section>`; })()}
@@ -1692,8 +1721,8 @@ function renderSummary(){
 function summaryData(){
   const head = ["Decision","Product","Category","Reason","Decided on","LIST"+(gstF()>1?" ex GST":""),"Proposed LIST"+(gstF()>1?" ex GST":""),"Online average","Online websites","Market average","Competitors","Vs market %","Compared on","Units last 12 months","Units change %"];
   const f = v => v==null?"":(typeof v==="number"? Math.round(v*100)/100 : String(v).replace(/[\t\n\r]/g," "));
-  const rv = liveProds().filter(reviewed), lst = (r,k) => prvEntries(r).filter(x=>x.k===k).map(x=>x.name+(x.note?" ("+x.note+")":"")).join("; ");
-  return [head].concat(summaryRows().map(x=>{ const s=x.p.sales; return [actMeta(x.a.k)[1],x.p.name,x.c?x.c.name:"",x.a.why,x.a.date,x.i.list,num(x.p.price.proposed),x.i.o.avg,x.i.o.n||null,x.i.m.avg,x.i.m.c||null,x.i.gap,x.i.basis==="online"?"Online price":"LIST",s?s.units:null,unitChg(x.p)].map(f); }))
+  const rv = vis("review") ? liveProds().filter(reviewed) : [], lst = (r,k) => prvEntries(r).filter(x=>x.k===k).map(x=>x.name+(x.note?" ("+x.note+")":"")).join("; ");
+  return pubCols([head].concat(summaryRows().map(x=>{ const s=x.p.sales; return [actMeta(x.a.k)[1],x.p.name,x.c?x.c.name:"",x.a.why,x.a.date,x.i.list,num(x.p.price.proposed),x.i.o.avg,x.i.o.n||null,x.i.m.avg,x.i.m.c||null,x.i.gap,x.i.basis==="online"?"Online price":"LIST",s?s.units:null,unitChg(x.p)].map(f); })))
     .concat(rv.length ? [[], ["Competitor review with David"], ["Product","Category","Agreed","Remove","Replace","Competitors to add","Other changes","Saved on"]].concat(rv.map(p=>{ const r=p.review, c=catOf(p.cat), nb=prvEntries(r).filter(x=>!x.k);
       return [p.name, c?c.name:"", lst(r,"agree"), lst(r,"remove"), lst(r,"replace"), r.add||"", [r.other||"", ...nb.map(x=>x.name+": "+x.note)].filter(Boolean).join(". "), r.date||""].map(f); })) : []);
 }
@@ -1730,6 +1759,7 @@ function gbbTable(c, view){
   return needs.length ? `<div class="slwrap"><table class="slt"><colgroup><col style="width:170px"><col><col><col></colgroup><thead><tr><th scope="col">Need</th>${TIERS.map(([t,col])=>`<th scope="col" style="--c:var(${col})">${t}</th>`).join("")}</tr></thead><tbody>${needs.map(nd=>`<tr><th scope="row">${esc(nd)}</th>${TIERS.map(([t])=>slotCell(c,nd,t,view)).join("")}</tr>`).join("")}</tbody></table></div>` : `<p class="msg">No Good, Better, Best set for this category yet.</p>`;
 }
 function reviewBox(c){
+  if(!vis("review")) return "";
   const saved = c.review || {}, d = (S.rvd && S.rvd[c.id]) || saved, ro = !S.db || !S.canWrite, id = esc(c.id);
   return `<form class="rvbox" data-rv="${id}" novalidate><div class="row" style="justify-content:space-between;align-items:baseline"><h3>David's points, competitor review 27 Nov 2026</h3><span class="small">${saved.date?"Saved "+esc(fmtDate(saved.date)):"Nothing recorded yet"}</span></div>
     <div class="rvgrid">${RVF.map(([k,l])=>`<div class="fld"><label for="rv-${id}-${k}">${l}</label><textarea id="rv-${id}-${k}" data-rvf="${k}" rows="2"${ro?" readonly":""}>${esc(d[k]||"")}</textarea></div>`).join("")}</div>
@@ -1854,6 +1884,7 @@ function openSites(){
   const gbb = S.cats.filter(c=>c.type!=="list");
   $("#sitesForm").innerHTML = gbb.map((c,i)=>`<div class="fld"><label for="mc${i}">${esc(c.name)}: brands, separated by commas</label><input id="mc${i}" data-cat="${esc(c.id)}" value="${esc((c.mainComps||[]).join(", "))}">${c.mainCompsNote?`<p class="small" style="margin-top:4px">${esc(c.mainCompsNote)}</p>`:""}</div>`).join("");
   $("#bandIn").value = band(); $("#invU").value = limits().u; $("#invG").value = limits().g; $("#sitesMsg").textContent = S.canWrite?"":"View only";
+  $("#visForm").innerHTML = SECTIONS.length ? SECTIONS.map(x=>`<label class="visr"><input type="checkbox" data-sec="${esc(x.id)}" ${x.visible?"checked":""} ${S.admin&&S.secLive?"":"disabled"}><span><b>${esc(x.name)}</b>${x.desc?`<span class="small">${esc(x.desc)}</span>`:""}</span></label>`).join("") + (!S.secLive?`<p class="small">These switches start working once the database update is applied.</p>`:S.admin?"":`<p class="small">Only Paula can change these.</p>`) : `<p class="small">Not loaded yet.</p>`;
   $("#sitesSave").disabled = !S.canWrite;
   $("#ovSites").classList.add("open");
 }
@@ -1869,6 +1900,8 @@ async function saveSites(){
       body.mainComps = list; body.mainCompsRef = "Edited " + new Date().toLocaleDateString("en-AU"); body.mainCompsNote = "";
       await S.db.doc("categories/"+c.id).set(JSON.parse(JSON.stringify(body)));
     }
+    const secs = S.admin && S.secLive ? [...document.querySelectorAll("#visForm [data-sec]")].map(el=>({id:el.dataset.sec, visible:el.checked})).filter(x=>{ const o=SECTIONS.find(y=>y.id===x.id); return o && !!o.visible!==x.visible; }) : [];
+    if(secs.length) await S.db.doc("sections/main").set({items:secs});
     await S.db.doc("settings/main").set({ band: num($("#bandIn").value) ?? 5, investUnits: num($("#invU").value) ?? 10, investGap: num($("#invG").value) ?? 30, updated:new Date().toISOString() });
     $("#ovSites").classList.remove("open");
   }catch(e){ $("#sitesSave").disabled=false; $("#sitesMsg").textContent = (e&&e.code==="invalid_argument") ? "You can view this page but not change it." : "Not saved, try again."; }
@@ -2036,298 +2069,6 @@ window.addEventListener("hashchange", ()=>{
   if(lastView!==before) window.scrollTo(0,0);
 });
 
-/* ---------- sales view: what people see when they are not signed in as the team ---------- */
-const SV = {q:"", cat:"", disc:false, open:null, host:null, R:null, lastFocus:null};
-const SV_COL = ["#007C92","#B45309","#6D28D9"];
-const SV_CSS = `:host{all:initial;display:block;font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#1B2430;--sub:#5B6573;--line:#E3E6EA;--teal:#007C92;--tealbg:#E6F3F5;--red:#B3261E;--redbg:#FBEAE9;--green:#1E6B3A;--greenbg:#E8F3EC;--grey:#F1F2F4;--amberbg:#FFF4DE}
-*{box-sizing:border-box}
-a{color:var(--teal)}
-button{font:inherit;color:inherit}
-.top{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--line)}
-.top .in{max-width:1240px;margin:0 auto;padding:12px 20px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end}
-.brand{flex:1 1 280px;min-width:0;display:flex;gap:14px;align-items:center}
-.brand img{height:30px;width:auto}
-.brand h1{margin:0;font-size:20px;letter-spacing:-.01em}
-.brand p{margin:2px 0 0;color:var(--sub);font-size:13px}
-.ctl{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--sub)}
-.ctl select,.ctl input{font:inherit;font-size:14px;color:#1B2430;border:1px solid #C9CED5;border-radius:8px;padding:8px 10px;background:#fff;min-width:170px}
-.ctl input{min-width:230px}
-.ctl select:focus,.ctl input:focus,button:focus-visible,a:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
-.who{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--sub)}
-.tb{border:1px solid #C9CED5;background:#fff;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:14px}
-.tb:hover{border-color:var(--teal)}
-.top .tabs{padding-top:0;gap:6px;align-items:center}
-.tab{border:1px solid #C9CED5;background:#fff;border-radius:999px;padding:5px 12px;cursor:pointer;font-size:13px;color:#3D4652}
-.tab:hover{border-color:var(--teal)}
-.tab[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#fff}
-.empty button{background:none;border:0;padding:0;color:var(--teal);text-decoration:underline;cursor:pointer;font:inherit}
-.note{background:var(--amberbg);color:#5A3A00;font-size:13px}
-.note .in{max-width:1240px;margin:0 auto;padding:7px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.note button{background:none;border:0;text-decoration:underline;cursor:pointer;padding:0;color:#5A3A00}
-main{max-width:1240px;margin:0 auto;padding:14px 20px 60px}
-.sec{margin:22px 0 8px}
-.sec h2{font-size:17px;margin:0 0 10px;display:flex;align-items:baseline;gap:8px}
-.sec h2 span{font-size:13px;color:var(--sub);font-weight:400}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
-.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;gap:12px;text-align:left;cursor:pointer;width:100%;transition:border-color .15s,box-shadow .15s}
-.card:hover{border-color:#B9C2CC;box-shadow:0 2px 10px rgba(20,30,40,.06)}
-.thumb{width:76px;height:76px;flex:0 0 76px;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid var(--grey)}
-.thumb img{max-width:100%;max-height:100%;object-fit:contain}
-.thumb.ph{background:var(--grey);color:var(--sub);font-weight:600;font-size:18px}
-.cb{min-width:0;flex:1;display:flex;flex-direction:column;gap:4px}
-.cn{font-weight:600;font-size:15px;line-height:1.25}
-.tags{display:flex;flex-wrap:wrap;gap:4px}
-.tag{font-size:11px;padding:1px 7px;border-radius:999px;background:var(--grey);color:#3D4652;white-space:nowrap}
-.tag.asp{background:var(--tealbg);color:#005D6E}
-.tag.warn{background:var(--amberbg);color:#5A3A00;white-space:normal}
-.nums{display:flex;gap:14px;font-size:13px;color:var(--sub);margin-top:auto}
-.nums b{display:block;color:#1B2430;font-size:15px}
-.pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
-.pill.below{background:var(--greenbg);color:var(--green)}
-.pill.above{background:var(--redbg);color:var(--red)}
-.pill.inline{background:var(--grey);color:#3D4652}
-.pill.none{background:transparent;color:var(--sub);font-weight:400;padding:2px 0}
-.empty{color:var(--sub);padding:30px 0;text-align:center}
-.foot{color:var(--sub);font-size:12px;margin-top:40px;border-top:1px solid var(--line);padding-top:12px}
-.ov{position:fixed;inset:0;background:rgba(20,28,36,.38);z-index:20;display:none}
-.ov.on{display:block}
-.dr{position:fixed;top:0;right:0;bottom:0;width:min(760px,100%);background:#fff;z-index:21;overflow:auto;transform:translateX(100%);transition:transform .2s;box-shadow:-8px 0 30px rgba(0,0,0,.12);visibility:hidden}
-.dr.on{transform:none;visibility:visible}
-.dh{display:flex;gap:16px;padding:18px 20px 14px;border-bottom:1px solid var(--line);position:relative}
-.dh .thumb{width:120px;height:120px;flex-basis:120px}
-.dh h2{margin:0 30px 6px 0;font-size:21px;line-height:1.2}
-.x{position:absolute;top:12px;right:12px;border:0;background:var(--grey);width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:18px;line-height:1}
-.spec{margin:6px 0 0;padding:0;list-style:none;font-size:13px;color:var(--sub)}
-.spec li{display:inline}
-.spec li+li:before{content:" · "}
-.fly{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-.fly a{font-size:13px;border:1px solid #BFD9DE;background:var(--tealbg);color:#005D6E;border-radius:8px;padding:4px 10px;text-decoration:none}
-.fly a:hover{border-color:var(--teal)}
-.ds{padding:16px 20px;border-bottom:1px solid var(--line)}
-.ds h3{margin:0 0 10px;font-size:15px}
-.why{margin:0;padding-left:18px;font-size:14px}
-.why li{margin:2px 0}
-.leave{background:var(--amberbg);color:#5A3A00;border-radius:10px;padding:10px 12px;font-size:14px}
-.leave b{display:block}
-table{border-collapse:collapse;width:100%;font-size:14px}
-th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
-th{font-size:12px;color:var(--sub);font-weight:600}
-td.r,th.r{text-align:right;white-space:nowrap}
-tr.ref td{background:#FAFBFC;font-weight:600}
-.sum{font-size:15px;margin:0 0 10px}
-.sum .pill{font-size:13px;margin-right:6px}
-.small{font-size:12px;color:var(--sub)}
-.lane{width:100%;height:auto;display:block;margin:6px 0 4px}
-.comp{margin:14px 0 0}
-.comp h4{margin:0 0 6px;font-size:14px;display:flex;align-items:center;gap:8px}
-.dot{width:11px;height:11px;border-radius:50%;display:inline-block;flex:0 0 11px}
-.site{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;margin-top:6px;font-size:14px}
-.site .pr{font-weight:600;text-align:right;white-space:nowrap}
-.site .nt{grid-column:1/-1;font-size:12px;color:var(--sub);display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
-.site.na{background:#F4F5F6}
-.site.na .pr{text-decoration:line-through;color:var(--sub)}
-.site.na a{color:#006b7e}
-.st{font-size:11px;padding:1px 7px;border-radius:999px;white-space:nowrap}
-.st.yes{background:var(--greenbg);color:var(--green)}
-.st.no{background:#E6E8EB;color:#3D4652}
-.sz{font-size:11px;padding:1px 7px;border-radius:999px;background:var(--grey);color:#3D4652}
-.sz.use{background:var(--tealbg);color:#005D6E}
-.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-@media (max-width:640px){.top .in{padding:10px 14px}.ctl{flex:1 1 140px}.ctl select,.ctl input{min-width:0;width:100%}main{padding:10px 14px 50px}.dh{flex-direction:column}.dh .thumb{width:96px;height:96px}.ds{padding:14px}.brand img{display:none}}
-@media print{.top,.note,.ov,.dr{display:none!important}}`;
-
-const svQ = s => SV.R.querySelector(s);
-const svMoney = v => v==null ? "" : "$" + Number(v).toLocaleString("en-AU", {minimumFractionDigits: Number(v)%1 ? 2 : 0, maximumFractionDigits: 2});
-const svMoney0 = v => v==null ? "" : "$" + Math.round(v).toLocaleString("en-AU");
-const svDate = s => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s||""); return m ? (+m[3])+" "+MON[+m[2]-1]+" "+m[1] : ""; };
-const svSafe = u => /^https:\/\//.test(u||"") ? u : "";
-const svCatId = p => p.cat;
-const svInTab = p => isLeave(p) === SV.disc;
-/* Categories with products on the tab that is open. */
-function svCats(){ return S.cats.filter(c=>c.type!=="list" && [...S.prods.values()].some(p=>p.cat===c.id && svInTab(p))).map(c=>({id:c.id, n:c.name})); }
-const svCounts = x => num(x.p)!=null && !exclOf(x.site) && (!S.state || availIn(x.site, S.state)!=="no");
-function svInfo(p){ const i = info(p); return {avg:i.m.avg, low:i.m.low, high:i.m.high, n:i.m.n, c:i.m.c, gap:i.gap, st:i.st, sz:i.sz, list:i.listC}; }
-const svSzName = k => k==="from" ? "cheapest size" : k==="AP"||k==="SP" ? SZ[k].toLowerCase() : (SZ[k]||k);
-function svPill(m){
-  if(!m || m.gap==null) return `<span class="pill none">No competitor price${S.state?" in "+S.state:""}</span>`;
-  const c = m.st || "inline";
-  return `<span class="pill ${c}">${c==="inline" ? "In line with market" : Math.abs(m.gap).toFixed(0)+"% "+(c==="above"?"above":"below")+" market"}</span>`;
-}
-function svList(p){
-  const sk = skuOf(p);
-  if(sk && sk.rows.some(r=>r.list!=null)){ const v = sk.rows.map(r=>r.list).filter(x=>x!=null), lo=Math.min(...v), hi=Math.max(...v); return lo===hi ? svMoney(lo) : "From "+svMoney(lo); }
-  const l = num(p.price.list); return l!=null ? svMoney(l) : "Not set";
-}
-const svTiers = p => (p.placements||[]).filter(x=>x.tier).map(x=>`<span class="tag">${esc(x.tier)}${x.need?": "+esc(x.need):""}</span>`).join("");
-function svThumb(p){
-  const first = esc((p.name||"?").slice(0,1));
-  return p.img ? `<span class="thumb"><img src="${esc(p.img)}" alt="" loading="lazy" data-ph="${first}"></span>` : `<span class="thumb ph" aria-hidden="true">${first}</span>`;
-}
-function svMatch(p){
-  if(!SV.q) return true;
-  const sk = skuOf(p);
-  const hay = [p.name, (catOf(p.cat)||{}).name, p.kind, ...(p.spec||[]), ...compsOf(p).map(c=>c.name), ...codesOf(p), ...(sk?sk.rows.map(r=>r.code):[])].join(" ").toLowerCase();
-  return SV.q.toLowerCase().split(/\s+/).filter(Boolean).every(w=>hay.includes(w));
-}
-function svCard(p){
-  const m = svInfo(p), leave = isLeave(p);
-  const tags = [isAspire(p)?`<span class="tag asp">Aspire</span>`:"", svTiers(p), p.flag?`<span class="tag warn">${esc(p.flag)}</span>`:"", leave&&p.status?`<span class="tag warn">${esc(p.status)}</span>`:""].join("");
-  return `<button class="card" data-sv="${esc(p.id)}" aria-haspopup="dialog">${svThumb(p)}<span class="cb"><span class="cn">${esc(p.name)}</span>${tags?`<span class="tags">${tags}</span>`:""}
-    <span class="nums"><span>Our LIST<b>${svList(p)}</b></span>${m.avg!=null?`<span>Market avg<b>${svMoney0(m.avg)}</b></span>`:""}</span><span>${svPill(m)}</span></span></button>`;
-}
-function svDates(){
-  let lo="", hi=""; S.prods.forEach(p=>compsOf(p).forEach(c=>c.sites.forEach(s=>{ if(s.date && num(s.p)!=null){ if(!lo||s.date<lo) lo=s.date; if(!hi||s.date>hi) hi=s.date; } })));
-  return [lo,hi];
-}
-function svEnsure(){
-  if(SV.R) return;
-  const h = document.createElement("div"); h.id = "svHost"; document.body.appendChild(h); SV.host = h;
-  SV.R = h.attachShadow({mode:"open"});
-  SV.R.innerHTML = `<style>${SV_CSS}</style>
-  <header class="top"><div class="in">
-    <div class="brand"><img src="img/aspire-logo-colour.png" alt="Aspire" width="103" height="30"><div><h1>Competitor Price Guide</h1><p id="svSub"></p></div></div>
-    <label class="ctl">Search<input id="svQ" type="search" placeholder="Product, competitor or code" autocomplete="off"></label>
-    <label class="ctl">Category<select id="svCat"></select></label>
-    <label class="ctl">Customer's state<select id="svSt"></select></label>
-    <div class="who" id="svWho"></div>
-  </div><div id="svTabs"></div><div id="svNote"></div></header>
-  <main id="svApp"><p class="empty">Loading prices…</p></main>
-  <div class="ov" id="svOv"></div>
-  <aside class="dr" id="svDr" role="dialog" aria-modal="true" aria-labelledby="svTitle" aria-hidden="true"></aside>`;
-  let qt; svQ("#svQ").addEventListener("input", e=>{ const v = e.target.value; clearTimeout(qt); qt=setTimeout(()=>{ SV.q=v.trim(); svRenderList(); },150); });
-  svQ("#svCat").addEventListener("change", e=>{ SV.cat=e.target.value; svRenderList(); window.scrollTo(0,0); });
-  svQ("#svSt").addEventListener("change", e=>setState(e.target.value));
-  SV.R.addEventListener("click", e=>{
-    const c = e.target.closest(".card"); if(c){ svOpen(c.dataset.sv); return; }
-    if(e.target.closest("#svX") || e.target.id==="svOv"){ svClose(); return; }
-    if(e.target.closest("#svClear")){ setState(""); return; }
-    const tb = e.target.closest("[data-svt]"); if(tb){ SV.disc = tb.dataset.svt==="1"; SV.cat = ""; renderSales(); window.scrollTo(0,0); const b = svQ(`[data-svt="${tb.dataset.svt}"]`); if(b && b.focus) b.focus(); return; }
-    if(e.target.closest("#svIn")){ CPB.openSignIn(); return; }
-    if(e.target.closest("#svOut")){ CPB.signOut(); return; }
-  });
-  SV.R.addEventListener("error", e=>{ const t=e.target; if(t && t.tagName==="IMG" && t.dataset.ph){ const s=t.parentNode; s.classList.add("ph"); s.textContent=t.dataset.ph; } }, true);
-  SV.R.addEventListener("keydown", e=>{
-    if(!SV.open) return;
-    if(e.key==="Escape"){ e.stopPropagation(); svClose(); return; }
-    if(e.key==="Tab"){ const f=[...svQ("#svDr").querySelectorAll("a,button")]; if(!f.length) return; const a=f[0], z=f[f.length-1], act=SV.R.activeElement;
-      if(e.shiftKey && act===a){ e.preventDefault(); z.focus(); } else if(!e.shiftKey && act===z){ e.preventDefault(); a.focus(); } }
-  });
-}
-function renderSales(){
-  const bar=$("#bar"), app=$("#app"); if(bar) bar.style.display="none"; if(app) app.style.display="none";
-  svEnsure(); SV.host.hidden=false;
-  const [d0,d1] = svDates();
-  svQ("#svSub").textContent = "Our LIST next to competitor prices on Australian websites"+(d0?", checked "+svDate(d0)+(d1&&d1!==d0?" to "+svDate(d1):""):"")+". Open the link before quoting a competitor price.";
-  const nDisc = [...S.prods.values()].filter(isLeave).length; if(!nDisc) SV.disc = false;
-  svQ("#svTabs").innerHTML = nDisc ? `<div class="in tabs" role="group" aria-label="Products to show"><button type="button" class="tab" data-svt="0" aria-pressed="${!SV.disc}">Current range</button><button type="button" class="tab" data-svt="1" aria-pressed="${SV.disc}">Discontinued (${nDisc})</button></div>` : "";
-  const cats = svCats(), cs = svQ("#svCat");
-  const ch = `<option value="">All categories</option>`+cats.map(c=>`<option value="${esc(c.id)}">${esc(c.n)}</option>`).join("");
-  if(cs.dataset.h!==ch){ cs.innerHTML=ch; cs.dataset.h=ch; } cs.value = cats.some(c=>c.id===SV.cat) ? SV.cat : (SV.cat="");
-  const ss = svQ("#svSt"); if(!ss.options.length) ss.innerHTML = `<option value="">All Australia</option>`+STATES.map(s=>`<option>${s}</option>`).join(""); ss.value = S.state||"";
-  const who = svQ("#svWho");
-  who.innerHTML = window.CPB && CPB.signedIn() ? `<span>${esc(CPB.email())}</span><button type="button" class="tb" id="svOut">Sign out</button>` : `<button type="button" class="tb" id="svIn">Team sign in</button>`;
-  const notes = [];
-  if(window.CPB && CPB.signedIn() && CPB.note()) notes.push(`<span>${esc(CPB.note())}</span>`);
-  if(S.state) notes.push(`<span>Showing what a customer in ${S.state} can buy: retailers with a store in ${S.state} or that deliver Australia-wide. Other prices are greyed out and not in the average.</span><button type="button" id="svClear">Show all Australia</button>`);
-  svQ("#svNote").innerHTML = notes.length ? `<div class="note"><div class="in">${notes.join("")}</div></div>` : "";
-  svRenderList();
-  if(SV.open){ const p=S.prods.get(SV.open); if(p) svQ("#svDr").innerHTML = svDetail(p); }
-}
-function svRenderList(){
-  const list = [...S.prods.values()].filter(p=>svInTab(p) && (!SV.cat || svCatId(p)===SV.cat) && svMatch(p));
-  const cats = svCats().filter(c=>!SV.cat || c.id===SV.cat);
-  const out = cats.map(c=>{
-    const ps = list.filter(p=>svCatId(p)===c.id).sort((a,b)=>(prodRank(a)-prodRank(b))||a.name.localeCompare(b.name));
-    return ps.length ? `<section class="sec"><h2>${esc(c.n)} <span>${ps.length} product${ps.length>1?"s":""}</span></h2><div class="grid">${ps.map(svCard).join("")}</div></section>` : "";
-  }).join("");
-  const band = num(S.settings.band) ?? 5;
-  const other = SV.q ? [...S.prods.values()].filter(p=>!svInTab(p) && svMatch(p)).length : 0;
-  const none = !S.prods.size ? `<p class="empty">No products on the board yet.</p>`
-    : other ? `<p class="empty">No ${SV.disc?"discontinued":"current"} products match. ${other} ${SV.disc?"current":"discontinued"} product${other>1?"s":""} match: <button type="button" data-svt="${SV.disc?"0":"1"}">show ${SV.disc?"the current range":"discontinued"}</button>.</p>`
-    : `<p class="empty">No products match. Try another word or clear the search.</p>`;
-  svQ("#svApp").innerHTML = (out || none) +
-    `<p class="foot">Prices come from public Australian retail websites. eBay, marketplaces and second-hand sites are not counted. "Market avg" averages each competitor product's prices, then averages the competitors. Within ${band}% of the market counts as in line. Prices change often, so check the retailer's page before you quote it.</p>`;
-}
-function svStTag(x){
-  const e = exclOf(x.site); if(e) return `<span class="st no">${esc(e)}, not counted</span>`;
-  if(!S.state) return "";
-  const a = availIn(x.site, S.state);
-  return a==="store" ? `<span class="st yes">Store in ${S.state}</span>` : a==="online" ? `<span class="st yes">Delivers Australia-wide</span>` : `<span class="st no">Not confirmed for ${S.state}</span>`;
-}
-function svLane(p, m, sk, used){
-  const rows = compsOf(p).map((c,ci)=>({c, ci, pts:c.sites.filter(svCounts)})).filter(r=>r.pts.length);
-  if(!rows.length) return "";
-  const our = m.list;
-  const vals = rows.flatMap(r=>r.pts.map(x=>num(x.p))).concat(our!=null?[our]:[], m.avg!=null?[m.avg]:[]);
-  let lo=Math.min(...vals), hi=Math.max(...vals); const pad=(hi-lo||hi*0.2||1)*0.08; lo-=pad; hi+=pad;
-  const nar = window.innerWidth < 600, W = nar?360:640, L = nar?104:150, R = nar?30:20, top=30, rh=30, H=top+rows.length*rh+26, cut = nar?14:22;
-  const X = v => L + (v-lo)/(hi-lo)*(W-L-R);
-  let s = `<svg class="lane" viewBox="0 0 ${W} ${H}" role="img" aria-label="Competitor prices compared with our LIST">`;
-  rows.forEach((r,i)=>{ const y=top+i*rh+rh/2;
-    s += `<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="#E3E6EA"/><text x="${L-8}" y="${y+4}" text-anchor="end" font-size="12" fill="#1B2430">${esc(r.c.name.length>cut?r.c.name.slice(0,cut-1)+"…":r.c.name)}</text>`;
-    r.pts.forEach(x=>{ const u = used(x, r.c.name), col = SV_COL[r.ci%3]; s += `<circle cx="${X(num(x.p)).toFixed(1)}" cy="${y}" r="6" fill="${u?col:"#fff"}" stroke="${col}" stroke-width="2"><title>${esc(x.site)} ${svMoney(num(x.p))}${u?"":" (different size or type, not in the average)"}</title></circle>`; });
-  });
-  const yb = top+rows.length*rh;
-  if(m.avg!=null){ const x=X(m.avg); s += `<line x1="${x}" x2="${x}" y1="${top-6}" y2="${yb}" stroke="#5B6573" stroke-dasharray="4 3"/><text x="${x}" y="${yb+16}" text-anchor="middle" font-size="11" fill="#5B6573">Market avg ${svMoney0(m.avg)}</text>`; }
-  if(our!=null){ const x=X(our); s += `<line x1="${x}" x2="${x}" y1="${top-10}" y2="${yb}" stroke="#1B2430" stroke-width="2.5"/><text x="${x}" y="${top-14}" text-anchor="middle" font-size="12" font-weight="700" fill="#1B2430">Our LIST ${svMoney0(our)}</text>`; }
-  return s + `</svg>`;
-}
-function svDetail(p){
-  const m = svInfo(p), sk = skuOf(p), leave = isLeave(p);
-  const tagsOf = (x, name) => sk ? tagOf(sk.cfg, x, name) : [];
-  const used = (x, name) => svCounts(x) && (!sk || !m.sz || tagsOf(x, name).includes(m.sz));
-  const fl = flyLinks(p), spec = (p.spec||[]).length ? `<ul class="spec">${p.spec.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>` : "";
-  const tags = [isAspire(p)?`<span class="tag asp">Aspire</span>`:"", svTiers(p), p.flag?`<span class="tag warn">${esc(p.flag)}</span>`:""].join("");
-  let h = `<div class="dh">${svThumb(p)}<div><h2 id="svTitle">${esc(p.name)}</h2>${tags?`<div class="tags">${tags}</div>`:""}${spec}${fl?`<div class="fly">${fl}</div>`:""}</div><button class="x" id="svX" aria-label="Close">×</button></div>`;
-  if(leave) h += `<div class="ds"><div class="leave"><b>${esc(p.status||"Discontinued")}</b>${esc(p.instead||"")}</div></div>`;
-  if(sk && sk.rows.length){
-    const hasCode = sk.rows.some(r=>r.code);
-    h += `<div class="ds"><h3>Our LIST</h3><table><thead><tr><th>${sk.cfg.kind==="type"?"Type":"Size"}</th>${hasCode?"<th>Code</th>":""}<th class="r">LIST</th></tr></thead><tbody>${sk.rows.map(r=>`<tr class="${m.sz===r.k?"ref":""}"><td>${esc(SZ[r.k]||r.k)}</td>${hasCode?`<td>${esc(r.code)}</td>`:""}<td class="r">${r.list!=null?svMoney(r.list):"Not set"}</td></tr>`).join("")}</tbody></table>${m.sz?`<p class="small">The comparison below uses ${m.sz==="from"?"competitors' cheapest size against our cheapest LIST":"the "+esc(svSzName(m.sz))+" row"}.</p>`:""}</div>`;
-  } else {
-    const l = num(p.price.list);
-    h += `<div class="ds"><h3>Our LIST</h3><p class="sum" style="margin:0">${l!=null?`<b>${svMoney(l)}</b>`:"Not set yet"}</p></div>`;
-  }
-  const why = p.reasons;
-  if(why && why.length) h += `<div class="ds"><h3>Why sell it</h3><ul class="why">${why.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`;
-  h += `<div class="ds"><h3>How we compare${S.state?" in "+S.state:""}</h3>`;
-  if(m.gap!=null){
-    const c = m.st||"inline", word = c==="inline" ? "in line with" : Math.abs(m.gap).toFixed(0)+"% "+(c==="above"?"above":"below");
-    h += `<p class="sum">${svPill(m)} Our LIST ${svMoney(m.list)} is ${word} the market average of ${svMoney0(m.avg)} (${m.n} price${m.n>1?"s":""} from ${m.c} competitor product${m.c>1?"s":""}${m.n>1?", "+svMoney0(m.low)+" to "+svMoney0(m.high):""}).</p>`;
-    h += svLane(p, m, sk, used);
-    if(sk && compsOf(p).some(c=>c.sites.some(x=>svCounts(x) && !used(x, c.name)))) h += `<p class="small">Hollow dots are a different size or type, so they are not in the average.</p>`;
-  } else h += `<p class="small" style="margin:0">No competitor price ${S.state?"a customer in "+S.state+" can buy ":""}to compare with.</p>`;
-  h += `</div>`;
-  const comps = compsOf(p);
-  if(comps.length){
-    h += `<div class="ds"><h3>Competitor prices</h3>`;
-    comps.forEach((c,ci)=>{
-      const sites = c.sites.filter(x=>num(x.p)!=null).sort((a,b)=>(svCounts(b)-svCounts(a))||(num(a.p)-num(b.p)));
-      h += `<div class="comp"><h4><span class="dot" style="background:${SV_COL[ci%3]}"></span>${esc(c.name)}</h4>`;
-      if(!sites.length) h += `<p class="small" style="margin:4px 0 0">No Australian online price found.</p>`;
-      sites.forEach(x=>{
-        const u = svSafe(x.url), ok = svCounts(x), tg = tagsOf(x, c.name).filter(k=>SZ[k]);
-        const szc = tg.map(k=>`<span class="sz${m.sz&&k===m.sz?" use":""}">${esc(SZ[k])}</span>`).join("");
-        const note = String(x.note||"").replace(/;?\s*QBR says '[^']*',?\s*/g, "; ").replace(/^[;\s]+|[;\s]+$/g, "");
-        h += `<div class="site${ok?"":" na"}"><span>${u?`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(x.site||"Website")}</a>`:esc(x.site||"Website")}</span><span class="pr">${svMoney(num(x.p))}</span><span class="nt">${szc}${svStTag(x)}${note?`<span>${esc(note)}</span>`:""}${x.date?`<span>Checked ${svDate(x.date)}</span>`:""}</span></div>`;
-      });
-      h += `</div>`;
-    });
-    h += `</div>`;
-  }
-  return h;
-}
-function svOpen(id){
-  const p = S.prods.get(id); if(!p) return;
-  SV.open = id; SV.lastFocus = SV.R.activeElement;
-  const dr = svQ("#svDr"); dr.innerHTML = svDetail(p); dr.classList.add("on"); dr.setAttribute("aria-hidden","false"); svQ("#svOv").classList.add("on");
-  document.body.style.overflow = "hidden"; dr.scrollTop = 0; svQ("#svX").focus();
-}
-function svClose(){
-  SV.open = null; const dr = svQ("#svDr"); dr.classList.remove("on"); dr.setAttribute("aria-hidden","true"); svQ("#svOv").classList.remove("on");
-  document.body.style.overflow = "";
-  if(SV.lastFocus && SV.lastFocus.focus) SV.lastFocus.focus();
-}
-
 /* ---------- data ---------- */
 (async function start(){
   for(let i=0;i<30 && !(window.claude && window.claude.use);i++) await new Promise(r=>setTimeout(r,100));
@@ -2338,11 +2079,15 @@ function svClose(){
   S.db = db;
   S.team = !!(window.CPB && CPB.isTeam());
   S.canWrite = S.team;
-  if(S.team){ const so=$("#signOut"); if(so){ so.hidden=false; so.title="Signed in as "+CPB.email(); } }
+  S.admin = !!(window.CPB && CPB.isAdmin && CPB.isAdmin());
+  const signedIn = !!(window.CPB && CPB.signedIn && CPB.signedIn());
+  if(signedIn){ const so=$("#signOut"); if(so){ so.hidden=false; so.title="Signed in as "+CPB.email(); } }
+  else { const si=$("#signIn"); if(si) si.hidden=false; }
+  if(signedIn && !S.team) S.authNote = (window.CPB && CPB.note()) || "This login is not on the team list yet. Ask Paula to add it.";
   claude.use("downloads").then(d=>{ S.dl = d || null; render(); }).catch(()=>{});
   const timer = setTimeout(()=>{ if(!(S.got.c&&S.got.p)){ const st=$("#status"); if(st){ st.className="msg warn"; st.textContent="Saved products can't be reached yet. Check your connection; the page will fill in when they arrive."; } } }, 10000);
   const fail = e => { clearTimeout(timer); const st=$("#status"); if(st){ st.className="msg warn"; st.textContent="Saved products could not be loaded ("+((e&&e.code)||"error")+")."; } };
-  db.doc("reference/main").onSnapshot(snap=>{ const r = (snap.exists && snap.data()) || {}; MGRS = r.managers||[]; GROUPS = r.groups||[]; RETAIL = r.retailers||{}; EXCL = r.excluded||{}; S.got.r=true; render(); }, fail);
+  db.doc("reference/main").onSnapshot(snap=>{ const r = (snap.exists && snap.data()) || {}; MGRS = r.managers||[]; GROUPS = r.groups||[]; RETAIL = r.retailers||{}; EXCL = r.excluded||{}; SECTIONS = r.sections||[]; S.secLive = r.sectionsLive !== false; S.got.r=true; render(); }, fail);
   db.collection("categories").onSnapshot(snap=>{ S.cats = snap.docs.map(d=>Object.assign({id:d.id}, d.data())).sort((a,b)=>(a.order||0)-(b.order||0)); S.got.c=true; if(!snap.metadata.fromCache && S.got.p) clearTimeout(timer); render(); }, fail);
   db.collection("products").onSnapshot(snap=>{ S.prods = new Map(snap.docs.map(d=>[d.id, norm(Object.assign({id:d.id}, d.data()))])); S.got.p=true; if(!snap.metadata.fromCache && S.got.c) clearTimeout(timer); render(); }, fail);
   db.doc("retail/main").onSnapshot(snap=>{ S.retail = snap.exists ? snap.data() : null; render(); }, ()=>{});

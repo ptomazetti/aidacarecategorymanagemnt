@@ -1,8 +1,9 @@
 /* Category Pricing Board: data and sign-in through Supabase.
    The data sits in plain tables (see supabase/schema.sql). This file reads the tables, builds the product and
    category records the board works with, and saves changes back with save_product, save_category and save_settings.
-   Public tables can be read by anyone with the link. Cost, sales, notes, reviews, our products on other websites,
-   retailer net prices and the price change log sit in team-only tables: they need a signed-in team member
+   Everyone sees the same board. Public tables can be read by anyone with the link. Some tables belong to a section with a
+   "Visible to sales" switch (sections table): a signed-out visitor only loads them when the switch is on, and the database
+   applies the same rule. Cost, sales and our net prices to retailers are always team only: they need a signed-in team member
    (an email in the members table). */
 (function(){
   "use strict";
@@ -10,7 +11,7 @@
   const mkErr = (code, msg) => { const e = new Error(msg || code); e.code = code; return e; };
   const clone = o => o==null ? o : JSON.parse(JSON.stringify(o));
 
-  let sb = null, session = null, team = false, authNote = "";
+  let sb = null, session = null, team = false, admin = false, authNote = "";
   const hash = location.hash || "";
   const linkType = /type=(invite|recovery|signup|magiclink)/.exec(hash);
 
@@ -19,7 +20,8 @@
     sb = window.supabase.createClient(CFG.url, CFG.key, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}});
     try{
       const r = await sb.auth.getSession(); session = r.data && r.data.session;
-      if(session){ const t = await sb.rpc("is_team"); team = t.data === true; if(!team) authNote = "This login is not on the team list yet. Ask Paula to add it."; }
+      if(session){ const t = await sb.rpc("is_team"); team = t.data === true; if(!team) authNote = "This login is not on the team list yet. Ask Paula to add it.";
+        if(team){ try{ const a = await sb.rpc("is_admin"); admin = a.data === true; }catch(_){ admin = false; } } }
     }catch(_){ team = false; }
     sb.auth.onAuthStateChange((ev, s) => {
       session = s;
@@ -32,9 +34,17 @@
   /* ---------- reading the tables ---------- */
   const PUBLIC = ["managers","manager_categories_to_add","category_groups","categories","category_needs","category_main_competitors",
     "category_gbb_competitors","category_range_extras","products","product_specs","product_placements","product_codes","product_sizes",
-    "product_selling_points","product_flyers","product_competitors","competitor_prices","retailers","retailer_store_states","settings"];
-  const TEAM = ["product_costs","product_sales","product_internal","online_prices","product_reviews","product_review_competitors",
-    "category_reviews","retailer_sales_info","retailer_codes","retailer_net_prices","price_changes"];
+    "product_competitors","competitor_prices","retailers","retailer_store_states","settings","sections"];
+  /* Tables behind each "Visible to sales" switch. */
+  const SECTION_TABLES = {why_buy:["product_selling_points"], flyers:["product_flyers"], online_prices:["online_prices"],
+    decisions:["product_internal"], price_changes:["price_changes"], review:["product_reviews","product_review_competitors","category_reviews"]};
+  /* Always team only. */
+  const LOCKED = ["product_costs","product_sales","retailer_sales_info","retailer_codes","retailer_net_prices"];
+  const SECTION_ALL = Object.keys(SECTION_TABLES).flatMap(k => SECTION_TABLES[k]);
+  /* Used only if the sections table can't be read: show what was public before the switches existed. */
+  const DEFAULT_SECTIONS = [["why_buy","Why people buy",true],["flyers","Flyers and brochures",true],["online_prices","Our products on retailer websites",false],
+    ["decisions","Flags and decisions",false],["price_changes","Price change history",false],["review","Competitor review",false]]
+    .map(([id, name, v], i) => ({section_id:id, name, description:"", sort_order:i + 1, visible_to_sales:v}));
   const KEYS = {
     managers:["manager_id"], manager_categories_to_add:["manager_id","sort_order"], category_groups:["group_id"], categories:["category_id"],
     category_needs:["category_id","sort_order"], category_main_competitors:["category_id","sort_order"], category_gbb_competitors:["category_id","sort_order"],
@@ -44,7 +54,8 @@
     competitor_prices:["product_id","competitor_no","site_no"], retailers:["website"], retailer_store_states:["website","state"], settings:["settings_id"],
     product_costs:["product_id"], product_sales:["product_id"], product_internal:["product_id"], online_prices:["product_id","site_no"],
     product_reviews:["product_id"], product_review_competitors:["product_id","sort_order"], category_reviews:["category_id"],
-    retailer_sales_info:["info_id"], retailer_codes:["website","sort_order"], retailer_net_prices:["website","product_id"], price_changes:["change_id"]
+    retailer_sales_info:["info_id"], retailer_codes:["website","sort_order"], retailer_net_prices:["website","product_id"], price_changes:["change_id"],
+    sections:["sort_order"]
   };
   const PAGE = 1000;
   async function fetchAll(t){
@@ -70,11 +81,17 @@
   const blankSite = () => ({site:"", p:null, url:"", date:""});
 
   async function loadAll(){
-    const pubRows = await Promise.all(PUBLIC.map(fetchAll));
+    const pubRows = await Promise.all(PUBLIC.map(t => t === "sections" ? fetchAll(t).catch(() => null) : fetchAll(t)));
     const T = {}; PUBLIC.forEach((t, i) => { T[t] = pubRows[i]; });
-    if(team){ const teamRows = await Promise.all(TEAM.map(fetchAll)); TEAM.forEach((t, i) => { T[t] = teamRows[i]; }); }
-    else TEAM.forEach(t => { T[t] = []; });
-    return build(T);
+    const sectionsLive = !!(T.sections && T.sections.length);
+    if(!sectionsLive) T.sections = DEFAULT_SECTIONS;
+    const shown = new Set(T.sections.filter(x => x.visible_to_sales === true).map(x => x.section_id));
+    const more = Object.keys(SECTION_TABLES).filter(k => team || shown.has(k)).flatMap(k => SECTION_TABLES[k]).concat(team ? LOCKED : []);
+    const moreRows = await Promise.all(more.map(fetchAll));
+    more.forEach((t, i) => { T[t] = moreRows[i]; });
+    SECTION_ALL.concat(LOCKED).forEach(t => { if(!T[t]) T[t] = []; });
+    const model = build(T); model.docs["reference/main"].sectionsLive = sectionsLive;
+    return model;
   }
 
   function build(T){
@@ -92,7 +109,8 @@
       managers: T.managers.slice().sort((a,b) => a.sort_order - b.sort_order).map(m => ({id:m.manager_id, name:m.name, todo:(G.manager_categories_to_add.get(m.manager_id)||[]).map(x => x.category_name)})),
       groups: T.category_groups.slice().sort((a,b) => a.sort_order - b.sort_order).map(g => ({id:g.group_id, name:g.name,
         cats: T.categories.filter(c => c.group_id===g.group_id).sort((a,b) => n(a.sort_order) - n(b.sort_order)).map(c => c.category_id)})),
-      retailers: {}, excluded: {}
+      retailers: {}, excluded: {},
+      sections: T.sections.slice().sort((a,b) => n(a.sort_order) - n(b.sort_order)).map(x => ({id:x.section_id, name:s(x.name), desc:s(x.description), visible:x.visible_to_sales === true}))
     };
     const STATE_ORDER = ["NSW","VIC","QLD","SA","WA","TAS","ACT","NT"];
     T.retailers.slice().sort((a,b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999)).forEach(r => {
@@ -227,7 +245,7 @@
     if(!team) throw mkErr("invalid_argument", "You can view this page but not change it.");
     const [coll, id] = [path.split("/")[0], path.slice(path.indexOf("/") + 1)];
     const body = Object.assign(clone(data) || {}, {id});
-    const call = coll === "products" ? ["save_product", {p: body}] : coll === "categories" ? ["save_category", {c: body}] : path === "settings/main" ? ["save_settings", {s: body}] : null;
+    const call = coll === "products" ? ["save_product", {p: body}] : coll === "categories" ? ["save_category", {c: body}] : path === "settings/main" ? ["save_settings", {s: body}] : path === "sections/main" ? ["save_sections", {s: body}] : null;
     if(!call) throw mkErr("invalid_argument", "This can't be saved here.");
     const r = await sb.rpc(call[0], call[1]);
     if(r.error){ const denied = r.error.code === "42501" || /row-level security|permission|only the team/i.test(r.error.message || ""); throw mkErr(denied ? "invalid_argument" : "unavailable", r.error.message); }
@@ -340,6 +358,7 @@
   window.CPB = {
     ready,
     isTeam: () => team,
+    isAdmin: () => admin,
     signedIn: () => !!(session && session.user),
     email: () => (session && session.user && session.user.email) || "",
     note: () => authNote,
