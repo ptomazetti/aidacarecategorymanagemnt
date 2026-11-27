@@ -1,9 +1,9 @@
 /* Category Pricing Board: data and sign-in through Supabase.
    The data sits in plain tables (see supabase/schema.sql). This file reads the tables, builds the product and
    category records the board works with, and saves changes back with save_product, save_category and save_settings.
-   The board is for the team only: nothing is loaded until a team member signs in (an email in the members table).
-   Cost, sales, notes, reviews, our products on other websites, retailer net prices and the price change log sit in
-   team-only tables in the database as well. */
+   Team review stage (Paula, 27 Nov 2026): anyone with the link can view the public tables. Signing in with a team email
+   (the members table) allows edits. Cost, sales, notes, reviews, our products on other websites, retailer net prices and
+   the price change log sit in team-only tables and are only requested after a team sign-in. */
 (function(){
   "use strict";
   const CFG = window.CPB_CONFIG || {};
@@ -32,7 +32,8 @@
   /* ---------- reading the tables ---------- */
   const PUBLIC = ["managers","manager_categories_to_add","category_groups","categories","category_needs","category_main_competitors",
     "category_gbb_competitors","category_range_extras","products","product_specs","product_placements","product_codes","product_sizes",
-    "product_selling_points","product_flyers","product_competitors","competitor_prices","retailers","retailer_store_states","settings"];
+    "product_selling_points","product_flyers","product_competitors","competitor_prices","retailers","retailer_store_states","settings",
+    "why_people_buy","why_people_buy_comparison","open_checks","why_people_buy_progress"];
   const TEAM = ["product_costs","product_sales","product_internal","online_prices","product_reviews","product_review_competitors",
     "category_reviews","retailer_sales_info","retailer_codes","retailer_net_prices","price_changes"];
   const KEYS = {
@@ -42,6 +43,8 @@
     product_placements:["product_id","sort_order"], product_codes:["product_id","sort_order"], product_sizes:["product_id","sort_order"],
     product_selling_points:["product_id","sort_order"], product_flyers:["product_id","sort_order"], product_competitors:["product_id","competitor_no"],
     competitor_prices:["product_id","competitor_no","site_no"], retailers:["website"], retailer_store_states:["website","state"], settings:["settings_id"],
+    why_people_buy:["product_id","reason_no"], why_people_buy_comparison:["product_id","reason_no","comparison_id"],
+    open_checks:["product_id","check_id"], why_people_buy_progress:["product_id"],
     product_costs:["product_id"], product_sales:["product_id"], product_internal:["product_id"], online_prices:["product_id","site_no"],
     product_reviews:["product_id"], product_review_competitors:["product_id","sort_order"], category_reviews:["category_id"],
     retailer_sales_info:["info_id"], retailer_codes:["website","sort_order"], retailer_net_prices:["website","product_id"], price_changes:["change_id"]
@@ -70,7 +73,6 @@
   const blankSite = () => ({site:"", p:null, url:"", date:""});
 
   async function loadAll(){
-    if(!team) throw mkErr("permission-denied", "Sign in with a team email to see the board.");
     const pubRows = await Promise.all(PUBLIC.map(fetchAll));
     const T = {}; PUBLIC.forEach((t, i) => { T[t] = pubRows[i]; });
     if(team){ const teamRows = await Promise.all(TEAM.map(fetchAll)); TEAM.forEach((t, i) => { T[t] = teamRows[i]; }); }
@@ -85,6 +87,8 @@
       ["product_competitors","product_id"],["online_prices","product_id"],["product_review_competitors","product_id"],["retailer_store_states","website"],
       ["retailer_codes","website"],["retailer_net_prices","website"]].forEach(([t, k]) => { G[t] = group(T[t], k); });
     const prices = group(T.competitor_prices, "product_id");
+    const wpbR = group(T.why_people_buy, "product_id"), wpbC = group(T.why_people_buy_comparison, "reason_id"),
+      wpbK = group(T.open_checks, "product_id"), wpbP = new Map(T.why_people_buy_progress.map(r => [r.product_id, r]));
     const one = (t, k) => new Map(T[t].map(r => [r[k], r]));
     const costs = one("product_costs","product_id"), sales = one("product_sales","product_id"), internal = one("product_internal","product_id"),
       reviews = one("product_reviews","product_id"), catReviews = one("category_reviews","category_id");
@@ -125,6 +129,13 @@
         price:{list:n(r.list_price)}, spec:(G.product_specs.get(id)||[]).map(x => x.spec),
         aspire:!!r.is_aspire, codes:(G.product_codes.get(id)||[]).map(x => x.item_code),
         flyers:(G.product_flyers.get(id)||[]).map(x => x.url), reasons:(G.product_selling_points.get(id)||[]).map(x => x.point)};
+      /* Why people buy: reasons with their competitor comparison, and open checks. */
+      p.wpb = {reasons:(wpbR.get(id)||[]).map(x => ({id:x.reason_id, no:x.reason_no, title:s(x.reason_title), feature:s(x.feature), say:s(x.what_people_say),
+          need:s(x.real_need), measure:s(x.measure), status:s(x.status) || "Proposed", date:day(x.date_checked),
+          comps:(wpbC.get(x.reason_id)||[]).map(c => ({id:c.comparison_id, comp:s(c.competitor_product), ours:s(c.our_value), theirs:s(c.competitor_value),
+            result:s(c.result), note:s(c.note), ourUrl:s(c.our_source_url), ourType:s(c.our_source_type), url:s(c.source_url), type:s(c.source_type), date:day(c.date_checked)}))})),
+        checks:(wpbK.get(id)||[]).map(x => ({id:x.check_id, issue:s(x.issue), urls:s(x.source_urls).split(/\s+/).filter(Boolean), resolved:!!x.resolved, comment:s(x.comment), date:day(x.date_added)})),
+        progress:wpbP.has(id) ? s(wpbP.get(id).status) : ""};
       if(r.discontinued) p.discontinued = true;
       if(r.image_path) p.img = r.image_path;
       if(r.updated_at) p.updated = r.updated_at;
@@ -232,6 +243,22 @@
     if(!call) throw mkErr("invalid_argument", "This can't be saved here.");
     const r = await sb.rpc(call[0], call[1]);
     if(r.error){ const denied = r.error.code === "42501" || /row-level security|permission|only the team/i.test(r.error.message || ""); throw mkErr(denied ? "invalid_argument" : "unavailable", r.error.message); }
+    later();
+  }
+
+  /* Why people buy edits go straight to their own tables. Row Level Security only lets the team change them. */
+  const WPB = {
+    why_people_buy:{key:"reason_id", cols:["reason_title","feature","what_people_say","real_need","measure","status","date_checked"]},
+    why_people_buy_comparison:{key:"comparison_id", cols:["our_value","competitor_value","result","note","date_checked"]},
+    open_checks:{key:"check_id", cols:["resolved","comment"]}
+  };
+  async function wpbSave(table, id, values){
+    if(!team) throw mkErr("invalid_argument", "You can view this page but not change it.");
+    const t = WPB[table]; if(!t) throw mkErr("invalid_argument", "This can't be saved here.");
+    const body = {}; Object.keys(values || {}).forEach(k => { if(t.cols.includes(k)) body[k] = values[k] === "" ? null : values[k]; });
+    const r = await sb.from(table).update(body).eq(t.key, id).select(t.key);
+    if(r.error){ const denied = r.error.code === "42501" || /row-level security|permission/i.test(r.error.message || ""); throw mkErr(denied ? "invalid_argument" : "unavailable", r.error.message); }
+    if(!r.data || !r.data.length) throw mkErr("invalid_argument", "Not saved: this login can't change it.");
     later();
   }
 
@@ -345,6 +372,7 @@
     email: () => (session && session.user && session.user.email) || "",
     note: () => authNote,
     openSignIn: () => openAuth("signin"),
+    wpbSave,
     signOut: async () => { try{ if(sb) await sb.auth.signOut(); }catch(_){} location.reload(); }
   };
 })();

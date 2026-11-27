@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
 <title>Category Pricing Board</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -475,7 +476,7 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
 .cbox .cr.cheap{background:#FDECEA} .cbox .cr.cheap a{color:#006b7e} .tag.lo{background:#B3261E;color:#fff} .tag.eq{background:var(--line2);color:var(--ink)} .tag.hi{background:var(--line2);color:var(--ink)} .olo{color:#B3261E;font-weight:600}
 .szbox{display:flex;flex-direction:column;gap:8px} .szt{width:100%;border-collapse:collapse;font-size:13px} .szt th,.szt td{padding:8px 10px;border-top:1px solid var(--line2);text-align:left;vertical-align:top}
 .szt thead th{border-top:0;font-size:12px;color:#5A6670;font-weight:600;background:var(--sunk)} .szt .num{text-align:right;white-space:nowrap} .szt th .small,.szt td .small{display:block;font-weight:400}
-.szt tr.szu{background:#EEF7F9} .szt .gt.below{color:#006b7e} .szuse{display:block;font-size:11px;font-weight:700;color:#006b7e} .szp{display:block} .szp b{color:var(--ink)}
+.szt tr.szu{background:#EEF7F9} .szt td .small a{color:#006b7e} .wpb .szt th[scope="row"]{font-weight:600;color:var(--ink)} .wpb .wmm{display:none} @media (max-width:600px){.wpb .wm{display:none} .wpb .wmm{display:block;color:var(--ink)} .wpb .szt th,.wpb .szt td{padding:6px 6px}} .wpbck{display:flex;flex-direction:column;gap:4px;padding-top:6px;border-top:1px solid var(--line2)} .szt .gt.below{color:#006b7e} .szuse{display:block;font-size:11px;font-weight:700;color:#006b7e} .szp{display:block} .szp b{color:var(--ink)}
 .tag.szc{background:var(--line2);color:var(--ink)} .tag.szc.on{background:#E3F1F4;color:#005A6B}
 .lanes{display:flex;flex-direction:column;gap:2px;margin:0 0 6px} .lanes .lr{display:grid;grid-template-columns:150px minmax(0,1fr);align-items:center}
 .lanes .lname{display:flex;align-items:center;gap:6px;padding-right:8px;font-size:12px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .lanes .lname i{width:9px;height:9px;border-radius:50%;flex:none}
@@ -562,11 +563,6 @@ details.addc summary{cursor:pointer;font-weight:600;color:var(--teal);min-height
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 [hidden]{display:none!important}
-.gate{max-width:520px;margin:60px auto;display:flex;flex-direction:column;gap:14px}
-.gate h1{margin:0}
-.gate p{margin:0}
-.gate .gnote{padding:10px 12px;border-radius:8px;background:var(--line2,#F1F2F4)}
-body.gated .gsearch,body.gated .stpick,body.gated #menuBtn{display:none}
 </style>
 </head>
 <body>
@@ -581,6 +577,7 @@ body.gated .gsearch,body.gated .stpick,body.gated #menuBtn{display:none}
     <label class="stpick"><span class="sr">Customer state</span><select id="stSel" aria-label="Customer state"><option value="">All Australia</option><option>NSW</option><option>VIC</option><option>QLD</option><option>SA</option><option>WA</option><option>TAS</option><option>ACT</option><option>NT</option></select></label>
     <button type="button" class="btn menubtn" id="menuBtn" aria-expanded="false" aria-controls="nav">Menu</button>
     <nav class="main" id="nav" aria-label="Main"></nav>
+    <button type="button" class="btn" id="signIn" hidden onclick="CPB.openSignIn()">Team sign in</button>
     <button type="button" class="btn" id="signOut" hidden onclick="CPB.signOut()">Sign out</button>
   </div>
 </header>
@@ -876,14 +873,9 @@ function renderNav(r){
   const items = [["home","Home",r.v==="home"]].concat(MGRS.map(m=>[`mgr/${m.id}`, m.name.split(" ")[0], (r.v==="mgr" && r.mgr===m.id) || (r.v==="cat" && catMgr(catOf(r.cat))===m.id) || (r.v==="grp" && grpMgr(grpOf(r.grp))===m.id)])).concat([["table","Summary",r.v==="table"],["report","Report",r.v==="report"],["states","States",r.v==="states"],["discontinued","Discontinued",r.v==="discontinued"]]);
   $("#nav").innerHTML = items.map(([h,t,on])=>`<a href="#${esc(h)}" ${on?'aria-current="page"':""}>${esc(t)}</a>`).join("");
 }
-/* The board is for the team only (Paula, 27 Nov 2026). Anyone else sees the sign-in page. */
-function renderGate(){
-  $("#nav").innerHTML = "";
-  $("#app").innerHTML = `<section class="gate" aria-labelledby="gateH"><h1 id="gateH">Category Pricing Board</h1><p>For the Category Management team. Sign in with your Aidacare email.</p>${S.authNote?`<p class="gnote" role="status">${esc(S.authNote)}</p>`:""}<div><button type="button" class="btn primary" onclick="CPB.openSignIn()">Team sign in</button></div><p class="small">First time here? Choose Team sign in, then Create your login.</p></section>`;
-}
+/* Team review stage (Paula, 27 Nov 2026): anyone with the link can view. Editing needs a team sign-in. */
 function render(){
   if(!S.ready) return;
-  if(!S.team){ renderGate(); return; }
   if(!S.got.c || !S.got.p || !S.got.r) return;
   if(!S.prods.size){ $("#app").innerHTML = `<div class="msg">No products are loaded yet.</div>`; return; }
   const r = route();
@@ -904,6 +896,7 @@ function render(){
   else if(r.v==="states") $("#app").innerHTML = renderStates();
   else if(r.v==="discontinued") $("#app").innerHTML = renderDisc();
   if(S.state && r.v!=="states") $("#app").insertAdjacentHTML("afterbegin", stBanner());
+  if(S.authNote) $("#app").insertAdjacentHTML("afterbegin", `<p class="msg warn" role="status">${esc(S.authNote)}</p>`);
   const ss = $("#stSel"); if(ss && ss.value!==(S.state||"")) ss.value = S.state||"";
   if(keep==="q"||keep==="tq"||/^rv-/.test(keep||"")){ const el=document.getElementById(keep); if(el){ el.focus(); try{ el.setSelectionRange(caret,caret); }catch(_){} } }
   renderDrawer(r);
@@ -1031,7 +1024,7 @@ function renderHome(){
   return `<h1 class="sr">Category Pricing Board</h1>
   <section class="hsec" aria-labelledby="mgrH"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 id="mgrH">By category manager</h2><span class="legend"><i class="above"></i>Above <i class="inline"></i>In line <i class="below"></i>Below <i class="none"></i>No market price</span></div><div class="mgrs">${mgrs}</div></section>
   ${gapHtml}
-  <p class="foot"><button type="button" class="linkbtn" id="editSites">Main competitors and settings</button></p>`;
+  ${S.canWrite?`<p class="foot"><button type="button" class="linkbtn" id="editSites">Main competitors and settings</button></p>`:""}`;
 }
 function renderMgr(id){
   const m = mgrOf(id), cats = mgrCats(id), view = "mgr/"+id;
@@ -1092,7 +1085,7 @@ function sideMenu(cat, list){
     const kinds=[...new Set(list.map(p=>p.kind).filter(Boolean))];
     extra = `<div class="grp" role="group" aria-label="Product type"><h3>Type</h3>${kinds.map(t=>opt("data-kind",t,t,list.filter(p=>p.kind===t).length,S.kind===t)).join("")}</div>`;
   } else {
-    extra = `${(cat.mainComps||[]).length?`<div class="grp" role="group" aria-label="Main competitors"><h3>Competitor brand</h3>${cat.mainComps.map(b=>{ const n=list.filter(p=>compsOf(p).some(c=>brandHit(c.name,b))).length; return (n||S.brand===b) ? opt("data-brand",b,b,n,S.brand===b) : ""; }).join("")}<p class="small">${esc(cat.mainCompsRef||"")} <button type="button" class="linkbtn" id="editSites">Edit</button></p></div>`:""}`;
+    extra = `${(cat.mainComps||[]).length?`<div class="grp" role="group" aria-label="Main competitors"><h3>Competitor brand</h3>${cat.mainComps.map(b=>{ const n=list.filter(p=>compsOf(p).some(c=>brandHit(c.name,b))).length; return (n||S.brand===b) ? opt("data-brand",b,b,n,S.brand===b) : ""; }).join("")}<p class="small">${esc(cat.mainCompsRef||"")}${S.canWrite?` <button type="button" class="linkbtn" id="editSites">Edit</button>`:""}</p></div>`:""}`;
   }
   return `<aside class="side" aria-label="Search and filter">
     <div class="grp"><h3><label for="q">Search</label></h3><input id="q" type="search" value="${esc(S.q)}" placeholder="Product or competitor" autocomplete="off"></div>
@@ -1135,7 +1128,7 @@ function renderDrawer(r){
     return;
   }
   const d = $("#drawer"), keepScroll = was===p.id ? d.scrollTop : 0;
-  const ae = document.activeElement, kf = was===p.id && ae && d.contains(ae) && ae.closest("[data-prv]")
+  const ae = document.activeElement, kf = was===p.id && ae && d.contains(ae) && ae.closest("[data-prv],[data-wpbf]")
     ? { sel: ae.id ? "#"+ae.id : ae.dataset.prk ? `[data-prc="${ae.dataset.prc}"][data-prk="${ae.dataset.prk}"]` : ae.dataset.prn!=null ? `[data-prn="${ae.dataset.prn}"]` : ae.type==="submit" ? "button[type=submit]" : null, a: ae.selectionStart, b: ae.selectionEnd } : null;
   d.innerHTML = detail(p);
   d.scrollTop = keepScroll;
@@ -1275,6 +1268,83 @@ async function saveProdReview(pid){
 }
 window.addEventListener("beforeunload", e=>{ if(prvPending()){ prvFlush(); e.preventDefault(); e.returnValue = ""; } });
 document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden") prvFlush(); });
+/* ---------- why people buy ----------
+   Tables why_people_buy, why_people_buy_comparison and open_checks. Each reason runs feature, what people say, real need,
+   measure, then the result against each competitor product on the board. Proposed until the category manager confirms it. */
+const WPB_RES = {"Better":"sst", "Same":"eq", "Worse":"lo", "Not proven":"sno", "Not found":"sno"};
+const wpbOf = p => p.wpb || {reasons:[], checks:[], progress:""};
+const srcLink = (u, t, l) => safeUrl(u) ? `<a href="${esc(safeUrl(u))}" target="_blank" rel="noopener">${esc(l)}${t?" ("+esc(t)+")":""}</a>` : "";
+function wpbBox(p){
+  const w = wpbOf(p), reasons = w.reasons.slice().sort((a,b)=>a.no-b.no), ed = S.canWrite && S.wpbEd && S.wpbEd.pid===p.id ? S.wpbEd : null;
+  const head = `<div class="row" style="justify-content:space-between;align-items:baseline"><h3>Why people buy</h3><span class="small">${reasons.length?(reasons.every(r=>r.status==="Confirmed")?"Confirmed":"Proposed until the category manager confirms"):""}</span></div>`;
+  if(!reasons.length && !w.checks.length) return `<div class="szbox">${head}<p class="small" style="margin:0">Not filled in yet.</p></div>`;
+  const msg = S.wpbMsg && S.wpbMsg.pid===p.id ? esc(S.wpbMsg.t) : "";
+  const body = reasons.map(r => ed && ed.rid===r.id ? wpbForm(p, r, ed) : wpbView(r)).join("");
+  const checks = w.checks.length ? `<div style="display:flex;flex-direction:column;gap:6px"><h3 style="margin:0;font-size:14px">Open checks</h3>${w.checks.map(c=>`<div class="wpbck">
+      <label class="small" style="display:flex;gap:8px;align-items:flex-start;color:var(--ink);font-size:13px"><input type="checkbox" data-wpbck="${esc(c.id)}" ${c.resolved?"checked":""} ${S.canWrite?"":"disabled"} aria-label="Resolved"><span>${c.resolved?`<span class="tag sst" style="margin:0 6px 0 0">Resolved</span>`:""}${esc(c.issue)}</span></label>
+      ${c.urls.length?`<span class="small">${c.urls.map((u,i)=>srcLink(u,"","Source "+(i+1))).filter(Boolean).join(" · ")}</span>`:""}
+      ${S.canWrite?`<div class="row" style="gap:6px"><input data-wpbcm="${esc(c.id)}" aria-label="Comment" placeholder="Comment" value="${esc(S.wpbCm && S.wpbCm[c.id]!=null ? S.wpbCm[c.id] : c.comment)}" style="flex:1;min-width:0;min-height:34px;border:1px solid var(--field);border-radius:8px;padding:0 10px"><button type="button" class="btn" data-wpbcs="${esc(c.id)}">Save comment</button></div>`:(c.comment?`<span class="small">Comment: ${esc(c.comment)}</span>`:"")}</div>`).join("")}</div>` : "";
+  return `<div class="szbox wpb" data-wpbp="${esc(p.id)}">${head}${body}${checks}<span class="small" data-wpbmsg aria-live="polite">${msg}</span></div>`;
+}
+function wpbView(r){
+  const st = r.status==="Confirmed" ? `<span class="tag sst">Confirmed</span>` : `<span class="tag sno">Proposed</span>`;
+  const rows = r.comps.map(c=>`<tr><th scope="row">${esc(c.comp)}</th><td class="wm">${esc(r.measure)}</td><td>${esc(c.ours||"Not found")}${c.ourUrl?`<span class="small">${srcLink(c.ourUrl, c.ourType, "Source")}</span>`:""}</td><td>${esc(c.theirs||"Not found")}${c.url?`<span class="small">${srcLink(c.url, c.type, "Source")}</span>`:""}</td><td>${c.result?`<span class="tag ${WPB_RES[c.result]||"sno"}" style="margin:0">${esc(c.result)}</span>`:""}${c.note?`<span class="small">${esc(c.note)}</span>`:""}</td></tr>`).join("");
+  return `<div class="wpbr" style="display:flex;flex-direction:column;gap:6px;padding-top:6px;border-top:1px solid var(--line2)">
+    <div class="row" style="justify-content:space-between;align-items:baseline;gap:6px"><b style="color:var(--ink);font-size:14px">${r.no}. ${esc(r.title)}${st}</b>${S.canWrite?`<span class="row" style="gap:6px">${r.status!=="Confirmed"?`<button type="button" class="btn" data-wpbok="${esc(r.id)}">Mark confirmed</button>`:""}<button type="button" class="btn" data-wpbed="${esc(r.id)}">Edit</button></span>`:""}</div>
+    <span class="small" style="color:var(--ink)">Real need: ${esc(r.need||"Not recorded")}</span>
+    <span class="small wmm">Measure: ${esc(r.measure||"Not recorded")}</span>
+    <span class="small">Feature: ${esc(r.feature||"Not recorded")}. People say: ${esc(r.say||"Not recorded")}.${r.date?" Checked "+esc(fmtDate(r.date))+".":""}</span>
+    ${rows?`<div class="sumwrap"><table class="szt"><thead><tr><th scope="col">Competitor</th><th scope="col" class="wm">Measure</th><th scope="col">Our value</th><th scope="col">Competitor value</th><th scope="col">Result</th></tr></thead><tbody>${rows}</tbody></table></div>`:`<span class="small">No competitor compared yet.</span>`}</div>`;
+}
+const WPB_F = [["title","Reason"],["feature","Feature"],["say","What people say"],["need","Real need"],["measure","Measure"]];
+function wpbForm(p, r, ed){
+  const v = k => ed.d[k]!=null ? ed.d[k] : r[k];
+  const cv = (c, k) => ed.d["c"+c.id+k]!=null ? ed.d["c"+c.id+k] : c[k];
+  return `<form class="wpbr prv" data-wpbf="${esc(r.id)}" novalidate style="border-left-color:var(--teal)"><h3>Edit reason ${r.no}</h3>
+    ${WPB_F.map(([k,l])=>`<div class="fld"><label for="wpb-${k}">${l}</label><textarea id="wpb-${k}" data-wpbk="${k}" rows="${k==="need"?2:1}">${esc(v(k)||"")}</textarea></div>`).join("")}
+    <div class="fld"><label for="wpb-status">Status</label><select id="wpb-status" data-wpbk="status">${["Proposed","Confirmed"].map(x=>`<option ${v("status")===x?"selected":""}>${x}</option>`).join("")}</select></div>
+    ${r.comps.map(c=>`<fieldset style="border:1px solid var(--line2);border-radius:8px;padding:8px 10px;display:grid;gap:8px"><legend class="small" style="font-weight:700">${esc(c.comp)}</legend>
+      <div class="fld"><label for="wpb-${c.id}-o">Our value</label><input id="wpb-${c.id}-o" data-wpbk="c${c.id}ours" value="${esc(cv(c,"ours")||"")}"></div>
+      <div class="fld"><label for="wpb-${c.id}-t">Competitor value</label><input id="wpb-${c.id}-t" data-wpbk="c${c.id}theirs" value="${esc(cv(c,"theirs")||"")}"></div>
+      <div class="fld"><label for="wpb-${c.id}-r">Result</label><select id="wpb-${c.id}-r" data-wpbk="c${c.id}result"><option value=""></option>${Object.keys(WPB_RES).map(x=>`<option ${cv(c,"result")===x?"selected":""}>${x}</option>`).join("")}</select></div>
+      <div class="fld"><label for="wpb-${c.id}-n">Note</label><textarea id="wpb-${c.id}-n" data-wpbk="c${c.id}note" rows="2">${esc(cv(c,"note")||"")}</textarea></div></fieldset>`).join("")}
+    <div class="row"><button type="submit" class="btn primary">Save</button><button type="button" class="btn" data-wpbx="1">Cancel</button></div></form>`;
+}
+function wpbMsg(pid, t){ S.wpbMsg = {pid, t}; const m = document.querySelector(`[data-wpbp="${CSS.escape(pid)}"] [data-wpbmsg]`); if(m) m.textContent = t; }
+const wpbErr = e => (e && e.code==="invalid_argument") ? "Not saved: you can view this page but not change it." : "Not saved, check the connection and try again.";
+function wpbFind(rid){ for(const p of S.prods.values()){ const r = wpbOf(p).reasons.find(x=>String(x.id)===String(rid)); if(r) return {p, r}; } return null; }
+async function wpbSaveForm(rid){
+  const f = wpbFind(rid); if(!f || !S.wpbEd) return;
+  const d = S.wpbEd.d, pick = k => d[k]!=null ? d[k] : f.r[k], day = today();
+  wpbMsg(f.p.id, "Saving…");
+  try{
+    await CPB.wpbSave("why_people_buy", f.r.id, {reason_title:(pick("title")||"").trim() || f.r.title, feature:pick("feature"), what_people_say:pick("say"), real_need:pick("need"), measure:pick("measure"), status:pick("status"), date_checked:day});
+    for(const c of f.r.comps){ const ks = ["ours","theirs","result","note"]; if(!ks.some(k=>d["c"+c.id+k]!=null)) continue;
+      const g = k => d["c"+c.id+k]!=null ? d["c"+c.id+k] : c[k];
+      await CPB.wpbSave("why_people_buy_comparison", c.id, {our_value:g("ours"), competitor_value:g("theirs"), result:g("result"), note:g("note"), date_checked:day}); }
+    S.wpbEd = null; wpbMsg(f.p.id, "Saved. Edits show for everyone once the page refreshes."); render();
+  }catch(e){ wpbMsg(f.p.id, wpbErr(e)); }
+}
+document.addEventListener("click", async e=>{
+  const t = e.target, hit = s => t.closest && t.closest(s); let el;
+  if((el=hit("[data-wpbed]"))){ const f = wpbFind(el.dataset.wpbed); if(f && S.canWrite){ S.wpbEd = {pid:f.p.id, rid:f.r.id, d:{}}; render(); const x=document.getElementById("wpb-title"); if(x) x.focus(); } return; }
+  if((el=hit("[data-wpbx]"))){ S.wpbEd = null; render(); return; }
+  if((el=hit("[data-wpbok]"))){ const f = wpbFind(el.dataset.wpbok); if(!f || !S.canWrite) return; el.disabled = true; wpbMsg(f.p.id, "Saving…");
+    try{ await CPB.wpbSave("why_people_buy", f.r.id, {status:"Confirmed", date_checked:today()}); wpbMsg(f.p.id, "Confirmed."); }catch(err){ el.disabled = false; wpbMsg(f.p.id, wpbErr(err)); } return; }
+  if((el=hit("[data-wpbcs]"))){ const box = el.closest("[data-wpbp]"), id = el.dataset.wpbcs, inp = box && box.querySelector(`[data-wpbcm="${CSS.escape(id)}"]`); if(!box || !inp) return; el.disabled = true; wpbMsg(box.dataset.wpbp, "Saving…");
+    try{ await CPB.wpbSave("open_checks", Number(id), {comment:inp.value.trim()}); if(S.wpbCm) delete S.wpbCm[id]; wpbMsg(box.dataset.wpbp, "Comment saved."); }catch(err){ wpbMsg(box.dataset.wpbp, wpbErr(err)); } finally{ el.disabled = false; } return; }
+});
+document.addEventListener("change", async e=>{
+  const el = e.target; if(!el || !el.dataset) return;
+  if(el.dataset.wpbck){ const box = el.closest("[data-wpbp]"); if(!box || !S.canWrite) return; wpbMsg(box.dataset.wpbp, "Saving…");
+    try{ await CPB.wpbSave("open_checks", Number(el.dataset.wpbck), {resolved:el.checked}); wpbMsg(box.dataset.wpbp, el.checked ? "Marked resolved." : "Marked not resolved."); }
+    catch(err){ el.checked = !el.checked; wpbMsg(box.dataset.wpbp, wpbErr(err)); } return; }
+  if(el.dataset.wpbk && S.wpbEd) S.wpbEd.d[el.dataset.wpbk] = el.value;
+});
+document.addEventListener("input", e=>{ const el = e.target; if(!el || !el.dataset) return;
+  if(el.dataset.wpbk && S.wpbEd) S.wpbEd.d[el.dataset.wpbk] = el.value;
+  if(el.dataset.wpbcm){ S.wpbCm = S.wpbCm || {}; S.wpbCm[el.dataset.wpbcm] = el.value; } });
+document.addEventListener("submit", e=>{ const f = e.target.closest && e.target.closest("[data-wpbf]"); if(f){ e.preventDefault(); wpbSaveForm(f.dataset.wpbf); } });
 function sizeBox(p, i){
   const sk = skuOf(p); if(!sk) return "";
   const pl = xs => xs.length ? xs.map(x=>`<span class="szp">${esc(x.comp)}, ${esc(x.site)} <b>${money(x.p)}</b></span>`).join("") : `<span class="small">None</span>`;
@@ -1348,6 +1418,7 @@ function detail(p){
     ${ours}
     ${sizeBox(p, i)}
     <div style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between"><h3>Competitor prices</h3><span class="small">${dates?"Checked "+esc(dates):""}</span></div>${lanes}${comps||`<p class="small">No competitors listed.</p>`}</div>
+    ${isLeave(p) ? "" : wpbBox(p)}
     ${prodReview(p)}
     ${isLeave(p) ? "" : histBox(p)}
   </div></div>`;
@@ -1371,7 +1442,7 @@ function tableCols(){
   if(anyProp) c.push(["prop",LL("Proposed LIST")]);
   c.push(["onl","Online average"],["avg","Market average"],["gapL","LIST vs market"]);
   if(anyProp) c.push(["gapProp","Proposed vs market"]);
-  c.push(["gma","Actual GM%"]);
+  if(S.team) c.push(["gma","Actual GM%"]);
   return c;
 }
 function tableRows(){
@@ -1744,6 +1815,7 @@ function gbbTable(c, view){
 }
 function reviewBox(c){
   const saved = c.review || {}, d = (S.rvd && S.rvd[c.id]) || saved, ro = !S.db || !S.canWrite, id = esc(c.id);
+  if(ro && !RVF.some(([k])=>saved[k])) return "";
   return `<form class="rvbox" data-rv="${id}" novalidate><div class="row" style="justify-content:space-between;align-items:baseline"><h3>David's points, competitor review 27 Nov 2026</h3><span class="small">${saved.date?"Saved "+esc(fmtDate(saved.date)):"Nothing recorded yet"}</span></div>
     <div class="rvgrid">${RVF.map(([k,l])=>`<div class="fld"><label for="rv-${id}-${k}">${l}</label><textarea id="rv-${id}-${k}" data-rvf="${k}" rows="2"${ro?" readonly":""}>${esc(d[k]||"")}</textarea></div>`).join("")}</div>
     ${ro?"":`<div class="row"><button type="submit" class="btn primary">Save</button><span class="small" data-rvmsg aria-live="polite"></span></div>`}</form>`;
@@ -1984,7 +2056,7 @@ document.addEventListener("click", e=>{
   if(hit("#copySum")){ copyTsv(summaryData(), $("#sumMsg")); return; }
   if(hit("#dlReport")){ saveCsv("positioning-report-"+today()+".csv", reportData(), $("#repMsg")); return; }
   if(hit("#copyReport")){ copyTsv(reportData(), $("#repMsg")); return; }
-  if(hit("#editSites")){ openSites(); focusAfter("#sitesForm input"); return; }
+  if(hit("#editSites") && S.canWrite){ openSites(); focusAfter("#sitesForm input"); return; }
   if(hit("#edClose") || hit("#edCancel") || t.id==="ov"){ closeEditor(); return; }
   if(hit("#edSave")){ saveEditor(); return; }
   if(hit("#sitesCancel") || t.id==="ovSites"){ $("#ovSites").classList.remove("open"); return; }
@@ -2061,8 +2133,9 @@ window.addEventListener("hashchange", ()=>{
   S.canWrite = S.team;
   const signedIn = !!(window.CPB && CPB.signedIn());
   if(signedIn){ const so=$("#signOut"); if(so){ so.hidden=false; so.title="Signed in as "+CPB.email(); } }
+  else { const si=$("#signIn"); if(si) si.hidden=false; }
   S.ready = true;
-  if(!S.team){ S.authNote = signedIn ? ((window.CPB && CPB.note()) || "This login is not on the team list yet. Ask Paula to add it.") : ""; document.body.classList.add("gated"); render(); return; }
+  if(signedIn && !S.team) S.authNote = (window.CPB && CPB.note()) || "This login is not on the team list yet. Ask Paula to add it.";
   claude.use("downloads").then(d=>{ S.dl = d || null; render(); }).catch(()=>{});
   const timer = setTimeout(()=>{ if(!(S.got.c&&S.got.p)){ const st=$("#status"); if(st){ st.className="msg warn"; st.textContent="Saved products can't be reached yet. Check your connection; the page will fill in when they arrive."; } } }, 10000);
   const fail = e => { clearTimeout(timer); const st=$("#status"); if(st){ st.className="msg warn"; st.textContent="Saved products could not be loaded ("+((e&&e.code)||"error")+")."; } };
