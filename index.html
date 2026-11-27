@@ -1127,11 +1127,11 @@ function renderDrawer(r){
     return;
   }
   const d = $("#drawer"), keepScroll = was===p.id ? d.scrollTop : 0;
-  const ae = document.activeElement, kf = was===p.id && ae && d.contains(ae) && ae.closest("[data-prv],[data-wpbf]")
-    ? { sel: ae.id ? "#"+ae.id : ae.dataset.prk ? `[data-prc="${ae.dataset.prc}"][data-prk="${ae.dataset.prk}"]` : ae.dataset.prn!=null ? `[data-prn="${ae.dataset.prn}"]` : ae.type==="submit" ? "button[type=submit]" : null, a: ae.selectionStart, b: ae.selectionEnd } : null;
+  const ae = document.activeElement, kf = was===p.id && ae && d.contains(ae) && ae.closest("[data-prv],[data-wpbf],[data-wpbcm]")
+    ? { scope: ae.closest("form.prv") ? "form.prv " : "", sel: ae.id ? "#"+ae.id : ae.dataset.prk ? `[data-prc="${ae.dataset.prc}"][data-prk="${ae.dataset.prk}"]` : ae.dataset.prn!=null ? `[data-prn="${ae.dataset.prn}"]` : ae.type==="submit" ? "button[type=submit]" : null, a: ae.selectionStart, b: ae.selectionEnd } : null;
   d.innerHTML = detail(p);
   d.scrollTop = keepScroll;
-  if(kf && kf.sel){ const n = d.querySelector("form.prv "+kf.sel); if(n){ n.focus({preventScroll:true}); if(kf.a!=null){ try{ n.setSelectionRange(kf.a, kf.b); }catch(_){} } } }
+  if(kf && kf.sel){ const n = d.querySelector(kf.scope+kf.sel); if(n){ n.focus({preventScroll:true}); if(kf.a!=null){ try{ n.setSelectionRange(kf.a, kf.b); }catch(_){} } } }
   document.body.classList.add("open-d"); document.body.style.overflow="hidden";
   if(was!==p.id){ drawerFor=p.id; const x=$("#dClose"); if(x) x.focus(); }
 }
@@ -1276,13 +1276,13 @@ const srcLink = (u, t, l) => safeUrl(u) ? `<a href="${esc(safeUrl(u))}" target="
 function wpbBox(p){
   const w = wpbOf(p), reasons = w.reasons.slice().sort((a,b)=>a.no-b.no), ed = S.canWrite && S.wpbEd && S.wpbEd.pid===p.id ? S.wpbEd : null;
   const head = `<div class="row" style="justify-content:space-between;align-items:baseline"><h3>Why people buy</h3><span class="small">${reasons.length?(reasons.every(r=>r.status==="Confirmed")?"Confirmed":"Proposed until the category manager confirms"):""}</span></div>`;
-  if(!reasons.length && !w.checks.length) return `<div class="szbox">${head}<p class="small" style="margin:0">Not filled in yet.</p></div>`;
+  if(!reasons.length && !w.checks.length) return `<div class="szbox">${head}<p class="small" style="margin:0">${w.progress==="Skipped" ? "Skipped"+(w.skipWhy?": "+esc(w.skipWhy):".") : "Not filled in yet."}</p></div>`;
   const msg = S.wpbMsg && S.wpbMsg.pid===p.id ? esc(S.wpbMsg.t) : "";
   const body = reasons.map(r => ed && ed.rid===r.id ? wpbForm(p, r, ed) : wpbView(r)).join("");
   const checks = w.checks.length ? `<div style="display:flex;flex-direction:column;gap:6px"><h3 style="margin:0;font-size:14px">Open checks</h3>${w.checks.map(c=>`<div class="wpbck">
       <label class="small" style="display:flex;gap:8px;align-items:flex-start;color:var(--ink);font-size:13px"><input type="checkbox" data-wpbck="${esc(c.id)}" ${c.resolved?"checked":""} ${S.canWrite?"":"disabled"} aria-label="Resolved"><span>${c.resolved?`<span class="tag sst" style="margin:0 6px 0 0">Resolved</span>`:""}${esc(c.issue)}</span></label>
       ${c.urls.length?`<span class="small">${c.urls.map((u,i)=>srcLink(u,"","Source "+(i+1))).filter(Boolean).join(" · ")}</span>`:""}
-      ${S.canWrite?`<div class="row" style="gap:6px"><input data-wpbcm="${esc(c.id)}" aria-label="Comment" placeholder="Comment" value="${esc(S.wpbCm && S.wpbCm[c.id]!=null ? S.wpbCm[c.id] : c.comment)}" style="flex:1;min-width:0;min-height:34px;border:1px solid var(--field);border-radius:8px;padding:0 10px"><button type="button" class="btn" data-wpbcs="${esc(c.id)}">Save comment</button></div>`:(c.comment?`<span class="small">Comment: ${esc(c.comment)}</span>`:"")}</div>`).join("")}</div>` : "";
+      ${S.canWrite?`<div class="row" style="gap:6px"><input id="wpbcm-${esc(c.id)}" data-wpbcm="${esc(c.id)}" aria-label="Comment" placeholder="Comment" value="${esc(S.wpbCm && S.wpbCm[c.id]!=null ? S.wpbCm[c.id] : c.comment)}" style="flex:1;min-width:0;min-height:34px;border:1px solid var(--field);border-radius:8px;padding:0 10px"><button type="button" class="btn" data-wpbcs="${esc(c.id)}">Save comment</button></div>`:(c.comment?`<span class="small">Comment: ${esc(c.comment)}</span>`:"")}</div>`).join("")}</div>` : "";
   return `<div class="szbox wpb" data-wpbp="${esc(p.id)}">${head}${body}${checks}<span class="small" data-wpbmsg aria-live="polite">${msg}</span></div>`;
 }
 function wpbView(r){
@@ -1314,13 +1314,15 @@ const wpbErr = e => (e && e.code==="invalid_argument") ? "Not saved: you can vie
 function wpbFind(rid){ for(const p of S.prods.values()){ const r = wpbOf(p).reasons.find(x=>String(x.id)===String(rid)); if(r) return {p, r}; } return null; }
 async function wpbSaveForm(rid){
   const f = wpbFind(rid); if(!f || !S.wpbEd) return;
-  const d = S.wpbEd.d, pick = k => d[k]!=null ? d[k] : f.r[k], day = today();
+  /* Only fields that were changed are sent, so a confirmation saved a moment ago is never written back to Proposed. */
+  const d = S.wpbEd.d, changed = (k, was) => d[k]!=null && String(d[k]).trim() !== String(was==null?"":was).trim();
+  const fields = {};
+  [["title","reason_title"],["feature","feature"],["say","what_people_say"],["need","real_need"],["measure","measure"],["status","status"]].forEach(([k,col])=>{ if(changed(k, f.r[k])) fields[col] = String(d[k]).trim(); });
+  const comps = f.r.comps.map(c=>{ const g = {}; [["ours","our_value"],["theirs","competitor_value"],["result","result"],["note","note"]].forEach(([k,col])=>{ if(changed("c"+c.id+k, c[k])) g[col] = String(d["c"+c.id+k]).trim(); }); return {id:c.id, fields:g}; }).filter(x=>Object.keys(x.fields).length);
+  if(!Object.keys(fields).length && !comps.length){ S.wpbEd = null; wpbMsg(f.p.id, "Nothing changed."); render(); return; }
   wpbMsg(f.p.id, "Saving…");
   try{
-    await CPB.wpbSave("why_people_buy", f.r.id, {reason_title:(pick("title")||"").trim() || f.r.title, feature:pick("feature"), what_people_say:pick("say"), real_need:pick("need"), measure:pick("measure"), status:pick("status"), date_checked:day});
-    for(const c of f.r.comps){ const ks = ["ours","theirs","result","note"]; if(!ks.some(k=>d["c"+c.id+k]!=null)) continue;
-      const g = k => d["c"+c.id+k]!=null ? d["c"+c.id+k] : c[k];
-      await CPB.wpbSave("why_people_buy_comparison", c.id, {our_value:g("ours"), competitor_value:g("theirs"), result:g("result"), note:g("note"), date_checked:day}); }
+    await CPB.wpbSaveReason({id:f.r.id, fields, comps});
     S.wpbEd = null; wpbMsg(f.p.id, "Saved. Edits show for everyone once the page refreshes."); render();
   }catch(e){ wpbMsg(f.p.id, wpbErr(e)); }
 }
@@ -1329,7 +1331,7 @@ document.addEventListener("click", async e=>{
   if((el=hit("[data-wpbed]"))){ const f = wpbFind(el.dataset.wpbed); if(f && S.canWrite){ S.wpbEd = {pid:f.p.id, rid:f.r.id, d:{}}; render(); const x=document.getElementById("wpb-title"); if(x) x.focus(); } return; }
   if((el=hit("[data-wpbx]"))){ S.wpbEd = null; render(); return; }
   if((el=hit("[data-wpbok]"))){ const f = wpbFind(el.dataset.wpbok); if(!f || !S.canWrite) return; el.disabled = true; wpbMsg(f.p.id, "Saving…");
-    try{ await CPB.wpbSave("why_people_buy", f.r.id, {status:"Confirmed", date_checked:today()}); wpbMsg(f.p.id, "Confirmed."); }catch(err){ el.disabled = false; wpbMsg(f.p.id, wpbErr(err)); } return; }
+    try{ await CPB.wpbSave("why_people_buy", f.r.id, {status:"Confirmed", date_checked:today()}); f.r.status = "Confirmed"; wpbMsg(f.p.id, "Confirmed."); }catch(err){ el.disabled = false; wpbMsg(f.p.id, wpbErr(err)); } return; }
   if((el=hit("[data-wpbcs]"))){ const box = el.closest("[data-wpbp]"), id = el.dataset.wpbcs, inp = box && box.querySelector(`[data-wpbcm="${CSS.escape(id)}"]`); if(!box || !inp) return; el.disabled = true; wpbMsg(box.dataset.wpbp, "Saving…");
     try{ await CPB.wpbSave("open_checks", Number(id), {comment:inp.value.trim()}); if(S.wpbCm) delete S.wpbCm[id]; wpbMsg(box.dataset.wpbp, "Comment saved."); }catch(err){ wpbMsg(box.dataset.wpbp, wpbErr(err)); } finally{ el.disabled = false; } return; }
 });
